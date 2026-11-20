@@ -1,0 +1,8 @@
+build/
+livro.docx
+livro.pdf
+__pycache__/
+*.pyc
+.env
+borboleta.gif
+assets/borboleta.webp

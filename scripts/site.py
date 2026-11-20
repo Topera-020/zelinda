@@ -1,0 +1,329 @@
+"""Gera um site estatico simples (prototipo) em build/site a partir de build/content."""
+import os, re, html, json, shutil, glob
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+B = os.path.join(ROOT, 'build'); S = os.path.join(ROOT, 'docs')   # docs/ = pasta publicada pelo GitHub Pages
+shutil.rmtree(S, ignore_errors=True); os.makedirs(S)
+shutil.copytree(B + '/img', S + '/img')
+if os.path.isdir(B + '/colorido'):
+    shutil.copytree(B + '/colorido', S + '/colorido', ignore=shutil.ignore_patterns('*_comparacao.png'))
+shutil.copy(B + '/capa_original.jpg', S + '/capa.jpg')
+open(S + '/.nojekyll', 'w').close()
+E = html.escape
+
+
+def inline(t):
+    t = E(t)
+    return re.sub(r'\*(.+?)\*', r'<em>\1</em>', t)
+
+
+def parse(path):
+    raw = open(path, encoding='utf-8').read()
+    fm, corpo = raw.split('---\n', 2)[1:]
+    meta = {}
+    for l in fm.strip().splitlines():
+        k, v = l.split(': ', 1)
+        meta[k] = v
+    meta['titulo'] = meta['titulo'].strip('"')
+    meta['parte'] = meta['parte'].strip('"')
+    meta['familiar'] = re.findall(r'"([^"]+)"', meta['familiar'])
+    return meta, corpo
+
+
+def corpo_html(corpo):
+    out, blocos = [], [b.strip() for b in re.split(r'\n\s*\n', corpo) if b.strip()]
+    i = 0
+    while i < len(blocos):
+        b = blocos[i]
+        m = re.match(r'!\[\]\(/img/(img\d+)\.(\w+)\)', b)
+        if m:
+            nome, ext = m.groups()
+            leg = ''
+            if i + 1 < len(blocos) and blocos[i + 1].startswith('*Figura'):
+                leg = f'<figcaption>{inline(blocos[i + 1].strip("*"))}</figcaption>'
+                i += 1
+            cor = f'colorido/{nome}.png'
+            col = f'<img class="cor" src="{cor}" alt="" loading="lazy">' if os.path.exists(f'{S}/{cor}') else ''
+            cls = ' colorir' if col else ''
+            out.append(f'<figure class="ilus{cls}"><div class="moldura"><img class="traco" src="img/{nome}.{ext}" alt="" loading="lazy">{col}</div>{leg}</figure>')
+        elif b.startswith('### '):
+            out.append(f'<h3>{inline(b[4:])}</h3>')
+        elif b.startswith('> '):
+            out.append(f'<blockquote>{inline(b[2:])}</blockquote>')
+        elif b.startswith('- '):
+            out.append('<ul>' + ''.join(f'<li>{inline(l[2:])}</li>' for l in b.splitlines()) + '</ul>')
+        elif b.startswith('*') and b.endswith('*'):
+            out.append(f'<p class="leg">{inline(b)}</p>')
+        else:
+            out.append(f'<p>{inline(b)}</p>')
+        i += 1
+    return '\n'.join(out)
+
+
+def poema_html(corpo):
+    """Meus Netos: a legenda vira texto comum e o poema ganha formatacao propria."""
+    blocos = [b.strip() for b in re.split(r'\n\s*\n', corpo) if b.strip()]
+    intro = blocos[0].lstrip('> ').strip()
+    out = [f'<p class="intro-poema"><em>{inline(intro)}</em></p><div class="poema">']
+    assin = ''
+    for b in blocos[1:]:
+        if b.startswith('### '):
+            assin = b[4:]
+            continue
+        tit = ''
+        if b.startswith('A volta dos meus netos '):
+            tit = '<h3 class="poema-tit">A volta dos meus netos</h3>'
+            b = b[len('A volta dos meus netos '):]
+        linhas = re.split(r'(?<=[,.?!])\s+(?=[A-ZÁÉÍÓÚÂÊÔÃÕ])', b)
+        out.append(tit + '<p class="estrofe">' + '<br>'.join(E(l) for l in linhas) + '</p>')
+    out.append('</div>')
+    if assin:
+        out.append(f'<p class="assina">— {E(assin)}</p>')
+    return '\n'.join(out)
+
+
+
+FONTES = '<link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,600;1,400&family=Playball&display=swap" rel="stylesheet">'
+
+
+def pagina(titulo, corpo, ativo=''):
+    def nav(h, t, k):
+        c = 'on' if ativo == k else ''
+        return f'<a href="{h}" class="{c}">{t}</a>'
+    return f'''<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>{E(titulo)} — Zelinda</title>{FONTES}<link rel="icon" href="favicon.svg" type="image/svg+xml"><link rel="icon" href="favicon.ico" sizes="any"><link rel="apple-touch-icon" href="apple-touch-icon.png"><link rel="stylesheet" href="estilo.css"></head><body>
+<div class="xadrez"></div>
+<div class="topo"><header><a class="logo" href="index.html">Zelinda</a><button class="menu-btn" type="button" aria-label="Abrir menu" aria-expanded="false" aria-controls="menu"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#c8283a" stroke-width="2.4" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button><nav id="menu">{nav("receitas.html?t=receita","Receitas","r")}{nav("receitas.html?t=memoria","Memórias","m")}{nav("familiares.html","Por familiar","f")}{nav("livro.html","O livro","l")}</nav></header></div>
+<main>{corpo}</main>
+<footer><span class="coracao">♥</span> Memórias e Receitas de Dona Zelinda</footer><script src="app.js"></script></body></html>'''
+
+
+itens = []
+for p in sorted(glob.glob(B + '/content/*.md')):
+    meta, corpo = parse(p)
+    slug = os.path.basename(p)[:-3]
+    texto = re.sub(r'[#>*!\[\]\-]|\(/img/[^)]*\)', ' ', corpo)
+    itens.append(dict(slug=slug, texto=texto, corpo=corpo, **meta))
+# pares memoria <-> receita: a receita fica ligada a memoria que vem antes dela no livro
+por_ordem = sorted(itens, key=lambda x: int(x['ordem']))
+atual = None
+for it in por_ordem:
+    it['liga'] = []
+    if it['tipo'] == 'memoria':
+        atual = it
+    elif atual is not None:
+        it['liga'].append(atual)
+        atual['liga'].append(it)
+for k, it in enumerate(por_ordem):
+    it['ant'] = por_ordem[k - 1] if k > 0 else None
+    it['prox'] = por_ordem[k + 1] if k + 1 < len(por_ordem) else None
+itens.sort(key=lambda x: x['titulo'].lower())
+
+
+def navegacao(it):
+    a = f'<a class="nav-a" href="r-{it["ant"]["slug"]}.html"><small>← Anterior</small>{E(it["ant"]["titulo"])}</a>' if it['ant'] else '<span></span>'
+    n = f'<a class="nav-p" href="r-{it["prox"]["slug"]}.html"><small>Próxima →</small>{E(it["prox"]["titulo"])}</a>' if it['prox'] else '<span></span>'
+    return f'<nav class="passos">{a}{n}</nav>'
+
+
+def botoes(it):
+    if not it['liga']:
+        return ''
+    if it['tipo'] == 'receita':
+        return ''.join(f'<a class="par" href="r-{o["slug"]}.html">Ler a história: {E(o["titulo"])}</a>' for o in it['liga'])
+    return ''.join(f'<a class="par" href="r-{o["slug"]}.html">Ver a receita: {E(o["titulo"])}</a>' for o in it['liga'])
+
+
+def cap(it):
+    if not it['parte']:
+        return ''
+    return f'<span class="parte">Capítulo: {E(it["parte"].rstrip(":"))}</span>'
+
+
+for it in itens:
+    fam = ''.join(f'<a class="selo" href="familiares.html#{E(f)}">♥ {E(f)}</a>' for f in it['familiar'])
+    tag = 'Receita' if it['tipo'] == 'receita' else 'Memória'
+    corpo = f'''<article class="item"><p class="trilha"><a href="index.html">Início</a> › <a href="receitas.html?t={it["tipo"]}">{tag}s</a></p>
+<h1>{E(it["titulo"])}</h1><p class="meta">{cap(it)}{fam}</p>
+{poema_html(it["corpo"]) if it["slug"] == "meus-netos" else corpo_html(it["corpo"])}<div class="pares">{botoes(it)}</div>{navegacao(it)}</article>'''
+    open(f'{S}/r-{it["slug"]}.html', 'w', encoding='utf-8').write(pagina(it['titulo'], corpo))
+
+idx = [dict(s=i['slug'], t=i['titulo'], k=i['tipo'], f=i['familiar'], x=re.sub(r'\s+', ' ', i['texto'])[:6000].lower()) for i in itens]
+open(S + '/indice.js', 'w', encoding='utf-8').write('window.INDICE=' + json.dumps(idx, ensure_ascii=False) + ';')
+nrec = sum(i['tipo'] == 'receita' for i in itens)
+nmem = len(itens) - nrec
+
+
+def primeira_img(i):
+    m = re.search(r'!\[\]\(/img/(img\d+)\.(\w+)\)', i['corpo'])
+    return f'img/{m.group(1)}.{m.group(2)}' if m else ''
+
+
+def card(i):
+    t = 'Receita' if i['tipo'] == 'receita' else 'Memória'
+    im = primeira_img(i)
+    foto = f'<span class="foto"><img src="{im}" alt="" loading="lazy"></span>' if im else '<span class="foto vazio">♥</span>'
+    return f'<a class="card" href="r-{i["slug"]}.html">{foto}<span class="tipo">{t}</span><b>{E(i["titulo"])}</b></a>'
+
+
+DIV = '<div class="div"><svg viewBox="0 0 320 32" width="320" height="32" aria-hidden="true"><path d="M4 16h122M194 16h122" stroke="#c9a24a" stroke-width="2" stroke-linecap="round"/><circle cx="134" cy="16" r="3" fill="#c9a24a"/><circle cx="186" cy="16" r="3" fill="#c9a24a"/><g transform="translate(147.2 3.6) scale(.8)"><path d="M16 28.5C4 20.5 1.5 14 1.5 9.8 1.5 5.4 4.8 2.5 8.6 2.5c3 0 5.6 1.7 7.4 4.6 1.8-2.9 4.4-4.6 7.4-4.6 3.8 0 7.1 2.9 7.1 7.3 0 4.2-2.5 10.7-14.5 18.7z" fill="#c8283a"/></g></svg></div>'
+
+# destaques: itens com ilustracao, alternando memoria/receita, na ordem do livro
+com_img = [i for i in por_ordem if primeira_img(i)]
+destaque = []
+for tipo in ('memoria', 'receita'):
+    destaque += [i for i in com_img if i['tipo'] == tipo][:3]
+destaque = sorted(destaque, key=lambda x: int(x['ordem']))
+
+# frase do livro: primeira citacao de tamanho agradavel
+frase = frase_de = ''
+for i in por_ordem:
+    for b in re.findall(r'^> (.+)$', i['corpo'], re.M):
+        b = b.strip('“”" ')
+        if 60 <= len(b) <= 170 and not frase:
+            frase, frase_de = b, i['titulo']
+
+# familiares com mais itens
+cont = {}
+for i in itens:
+    for f in i['familiar']:
+        cont[f] = cont.get(f, 0) + 1
+chips = ''.join(f'<a class="chip" href="familiares.html#{E(f)}">♥ {E(f)} <small>{n}</small></a>' for f, n in sorted(cont.items(), key=lambda kv: (-kv[1], kv[0]))[:14])
+
+home = f'''<section class="hero"><div class="hero-txt"><p class="script">Memórias e Receitas de</p><h1>Dona Zelinda</h1>
+<p class="lead">Receitas de família, histórias da cozinha e os desenhos de quem viveu tudo isso.</p>
+<form class="busca" action="receitas.html" method="get"><input name="q" placeholder="Receita, ingrediente ou nome…" autocomplete="off"><button>Buscar</button></form>
+<p class="numeros"><a href="receitas.html?t=receita"><b>{nrec}</b> receitas</a><a href="receitas.html?t=memoria"><b>{nmem}</b> memórias</a><a href="familiares.html"><b>{len(cont)}</b> familiares</a></p></div>
+<div class="hero-img"><img src="capa.jpg" alt="Capa do livro"><span class="selo-hero">♥ feito com amor</span></div></section>
+{DIV}
+<section><h2 class="script sec">Para começar</h2><div class="cards">{''.join(card(i) for i in destaque)}</div>
+<p class="mais"><a class="botao" href="receitas.html">Ver todas as receitas e memórias</a></p></section>
+{DIV}
+<section><h2 class="script sec sub">Quem aparece nas histórias</h2><p class="chips">{chips}<a class="chip todos" href="familiares.html">ver todos os {len(cont)} →</a></p></section>
+<section class="faixa"><blockquote class="frase">“{E(frase)}”<cite>do capítulo “{E(frase_de)}”</cite></blockquote></section>
+<section class="livro-cta"><img src="capa.jpg" alt="" class="mini"><div><h2 class="script">Leve o livro com você</h2><p>Todas as histórias e receitas em um só arquivo, para ler no sofá ou imprimir para a cozinha.</p><a class="botao" href="livro.html">Baixar o livro (PDF)</a></div></section>'''
+open(S + '/index.html', 'w', encoding='utf-8').write(pagina('Início', home))
+
+lista = '''<h1 class="script">Receitas e memórias</h1><form class="busca" onsubmit="return false"><input id="q" placeholder="Buscar…" autocomplete="off"></form>
+<p class="filtros"><button data-t="">Tudo</button><button data-t="receita">Receitas</button><button data-t="memoria">Memórias</button></p><p id="cont" class="leg"></p><ul id="lista" class="lista"></ul>'''
+open(S + '/receitas.html', 'w', encoding='utf-8').write(pagina('Receitas', '<script src="indice.js"></script><div class="item largo">' + lista + '</div>', 'r'))
+
+fams = {}
+for i in itens:
+    for f in (i['familiar'] or ['Sem marcação']):
+        fams.setdefault(f, []).append(i)
+
+
+def secao(f, v):
+    li = ''.join(f'<li><a href="r-{i["slug"]}.html">{E(i["titulo"])}</a></li>' for i in v)
+    return f'<section id="{E(f)}"><h2>♥ {E(f)} <small>({len(v)})</small></h2><ul class="lista">{li}</ul></section>'
+
+
+corpo = '<h1 class="script">Por familiar</h1>' + ''.join(
+    secao(f, v) for f, v in sorted(fams.items(), key=lambda kv: (kv[0] == 'Sem marcação', kv[0])))
+open(S + '/familiares.html', 'w', encoding='utf-8').write(pagina('Por familiar', '<div class="item largo">' + corpo + '</div>', 'f'))
+open(S + '/livro.html', 'w', encoding='utf-8').write(pagina('O livro', '<div class="item"><h1 class="script">O livro</h1><p>Aqui ficará o botão para baixar o livro completo em PDF.</p><p><a class="botao" href="#">Baixar PDF (em breve)</a></p></div>', 'l'))
+
+
+# icone do site: coracao vermelho
+SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><path d="M16 28.5C4 20.5 1.5 14 1.5 9.8 1.5 5.4 4.8 2.5 8.6 2.5c3 0 5.6 1.7 7.4 4.6 1.8-2.9 4.4-4.6 7.4-4.6 3.8 0 7.1 2.9 7.1 7.3 0 4.2-2.5 10.7-14.5 18.7z" fill="#d6283b"/><ellipse cx="9.2" cy="9" rx="3.2" ry="2" transform="rotate(-35 9.2 9)" fill="#fff" opacity=".55"/></svg>'
+open(S + '/favicon.svg', 'w', encoding='utf-8').write(SVG)
+from PIL import Image, ImageDraw
+import math
+def coracao(n):
+    g = 8 * n; im = Image.new('RGBA', (g, g), (0, 0, 0, 0)); d = ImageDraw.Draw(im)
+    pts = []
+    for k in range(720):
+        t = k / 720 * 2 * math.pi
+        x = 16 * math.sin(t) ** 3; y = 13 * math.cos(t) - 5 * math.cos(2 * t) - 2 * math.cos(3 * t) - math.cos(4 * t)
+        pts.append((g / 2 + x * g / 36, g * 0.46 - y * g / 36))
+    d.polygon(pts, fill=(214, 40, 59, 255))
+    d.ellipse([g * .22, g * .2, g * .36, g * .3], fill=(255, 255, 255, 140))
+    return im.resize((n, n), Image.LANCZOS)
+coracao(256).save(S + '/favicon.ico', sizes=[(16, 16), (32, 32), (48, 48), (64, 64)])
+fundo = Image.new('RGBA', (180, 180), (249, 235, 205, 255)); fundo.alpha_composite(coracao(140), (20, 24)); fundo.convert('RGB').save(S + '/apple-touch-icon.png')
+
+CSS = '''
+:root{--creme:#f9ebcd;--papel:#fdf4df;--verm:#c8283a;--vermesc:#9e1d2c;--ouro:#c9a24a;--tinta:#2b211c;--suave:#6b5a45}
+*{box-sizing:border-box}body{margin:0;overflow-x:hidden;background:var(--creme);color:var(--tinta);font:18px/1.45 Lora,Georgia,serif}p{margin:0 0 .65em}li{margin:0}ul{margin:.4em 0 .8em;padding-left:1.3em}
+.xadrez{height:22px;background:repeating-conic-gradient(var(--verm) 0 25%,#fff 0 50%) 0 0/22px 22px;border-bottom:3px solid var(--ouro)}
+.menu-btn{display:none;background:var(--papel);border:2px solid var(--verm);border-radius:10px;padding:6px 8px;cursor:pointer;line-height:0}.topo{background:var(--papel);border-bottom:2px solid var(--ouro)}header{display:flex;flex-wrap:wrap;gap:12px 28px;align-items:center;justify-content:space-between;max-width:1080px;margin:0 auto;padding:18px 20px}
+.logo{font:44px Playball,cursive;color:var(--verm);text-decoration:none}nav a{margin-left:20px;color:var(--tinta);text-decoration:none;border-bottom:2px solid transparent}nav a:hover,nav a.on{border-color:var(--verm);color:var(--verm)}
+main{max-width:1080px;margin:0 auto;padding:30px 20px 50px}a{color:var(--vermesc)}
+.script{font-family:Playball,cursive;color:var(--verm);font-weight:400}h1.script{font-size:46px;margin:.3em 0}
+h1{font:400 44px/1.15 Lora,serif;margin:.2em 0}h2{font-size:26px}h3{font-size:20px;color:var(--vermesc);margin:1.4em 0 .3em;border-bottom:2px dotted var(--ouro);padding-bottom:4px}
+.hero{display:grid;grid-template-columns:1.5fr .7fr;gap:30px;align-items:center;margin:0 0 34px;padding:38px 42px;background:var(--papel);border:2px solid var(--verm);border-radius:18px;outline:4px solid var(--creme);box-shadow:0 0 0 6px var(--ouro),0 14px 30px rgba(43,33,28,.18)}
+.hero .script{font-size:34px;margin:0}.hero h1{font:400 88px/1 Playball,cursive;color:var(--verm);margin:0 0 .2em}
+.hero-img img{width:100%;aspect-ratio:3/4;object-fit:cover;object-position:50% 52%;border:3px solid var(--ouro);border-radius:14px;outline:6px solid var(--creme);box-shadow:0 0 0 8px var(--verm)}
+.busca{display:flex;gap:8px;margin:18px 0}.busca input{flex:1;padding:12px 16px;font:inherit;border:2px solid var(--verm);border-radius:999px;background:var(--papel)}
+.busca button,.botao{background:var(--verm);color:#fff;border:0;border-radius:999px;padding:12px 22px;font:inherit;text-decoration:none;cursor:pointer}.botao:hover,.busca button:hover{background:var(--vermesc)}
+.atalhos a{margin-right:16px}.atalhos .botao{margin:0}
+.cards{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}@media(max-width:900px){.cards{grid-template-columns:repeat(2,1fr)}}@media(max-width:520px){.cards{grid-template-columns:1fr}}.card{background:var(--papel);border:2px solid var(--verm);border-radius:12px;padding:16px;text-decoration:none;color:var(--tinta);display:flex;flex-direction:column;gap:6px}.card:hover{border-color:var(--ouro);transform:translateY(-2px)}
+.tipo{font-size:13px;text-transform:uppercase;letter-spacing:.08em;color:var(--suave)}.leg{color:var(--suave);font-size:15px}
+.item{max-width:760px;margin:0 auto;background:var(--papel);border:2px solid var(--verm);border-radius:14px;padding:10px 40px 40px;outline:4px solid var(--creme);box-shadow:0 0 0 6px var(--ouro)}
+.item.largo{max-width:960px}.item h2{margin-bottom:.2em}
+.item h1{font-family:Playball,cursive;color:var(--verm);font-size:50px}.trilha{font-size:14px;color:var(--suave)}.meta{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center}
+.selo{background:var(--verm);color:#fff;border-radius:999px;padding:2px 14px;font-size:15px;text-decoration:none}.parte{color:var(--suave);font-size:14px;font-style:italic}
+a.par{display:block;margin:10px 0 0;padding:12px 18px;border:2px solid var(--verm);background:var(--verm);color:#fff;border-radius:12px;text-decoration:none;font-weight:600}a.par:hover{background:var(--vermesc)}a.par::after{content:' →'}
+.pares{margin-top:28px}.passos{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px;padding-top:14px;border-top:3px dotted var(--ouro)}.passos a{margin:0;display:block;padding:12px 16px;border:2px solid var(--verm);border-radius:12px;text-decoration:none;color:var(--tinta);background:var(--papel)}.passos a:hover{background:var(--verm);color:#fff}.passos small{display:block;color:var(--suave);font-size:13px}.passos a:hover small{color:#fff}.nav-p{text-align:right}
+blockquote{margin:1em 0;padding:6px 18px;border-left:4px solid var(--verm);font-style:italic;background:var(--creme)}
+.ilus{margin:24px 0;text-align:center}.moldura{position:relative;display:inline-block;max-width:100%;border:2px solid var(--verm);border-radius:12px;padding:10px;background:var(--papel)}
+.ilus img{display:block;max-width:100%;max-height:520px;mix-blend-mode:multiply}.cor{position:absolute;inset:10px;width:calc(100% - 20px);height:calc(100% - 20px);object-fit:contain;opacity:0;transition:opacity .9s ease}
+.colorir:hover .cor,.colorir.ativo .cor{opacity:1}figcaption{color:var(--suave);font-size:14px;margin-top:6px;font-style:italic}
+.lista{list-style:none;padding:0;columns:2 280px;column-gap:30px}.lista li{padding:6px 0;border-bottom:1px dotted var(--ouro);break-inside:avoid}.lista small{color:var(--suave)}
+.filtros button{background:var(--papel);border:2px solid var(--verm);color:var(--verm);border-radius:999px;padding:4px 16px;font:inherit;cursor:pointer;margin-right:6px}.filtros button.on{background:var(--verm);color:#fff}
+.lead{font-size:20px;color:var(--suave)}.numeros{display:flex;gap:10px;flex-wrap:wrap;margin-top:6px}.numeros a{background:var(--papel);border:2px solid var(--verm);border-radius:999px;padding:6px 16px;text-decoration:none;color:var(--tinta)}.numeros b{color:var(--verm);font-size:22px}.numeros a:hover{background:var(--verm);color:#fff}.numeros a:hover b{color:#fff}
+.hero-img{position:relative;max-width:300px;width:100%;justify-self:center;transform:rotate(2.5deg)}.selo-hero{position:absolute;left:-14px;bottom:26px;background:var(--verm);color:#fff;font:22px Playball,cursive;padding:6px 18px;border-radius:999px;transform:rotate(-5deg);box-shadow:0 3px 0 var(--vermesc)}
+.sec{font-size:40px;text-align:center;margin:.2em 0 .6em}.chips{justify-content:center}.chip.todos{background:var(--verm);color:#fff}.sub{text-decoration:underline solid var(--verm) 3px;text-underline-offset:9px}
+.div{text-align:center;margin:8px 0 22px}
+.mais{text-align:center;margin:26px 0 34px}
+.card .foto{display:flex;align-items:center;justify-content:center;height:170px;background:var(--papel);border-radius:8px;overflow:hidden}.card .foto img{max-height:100%;max-width:100%;object-fit:contain;mix-blend-mode:multiply;transition:transform .5s}.card:hover .foto img{transform:scale(1.05)}.card .vazio{font-size:46px;color:var(--verm)}
+.chips{display:flex;flex-wrap:wrap;gap:8px}.chip{background:var(--papel);border:2px solid var(--verm);border-radius:999px;padding:4px 14px;text-decoration:none;color:var(--tinta)}.chip small{color:var(--suave)}.chip:hover{background:var(--verm);color:#fff}.chip:hover small{color:#fff}
+.faixa{margin:44px calc(50% - 50vw);padding:50px 20px;background:var(--verm) repeating-conic-gradient(rgba(255,255,255,.12) 0 25%,transparent 0 50%) 0 0/36px 36px;text-align:center;border-top:3px solid var(--ouro);border-bottom:3px solid var(--ouro)}
+.frase{max-width:760px;margin:0 auto;padding:26px 30px;background:var(--papel);border:3px double var(--ouro);border-radius:12px;font:italic 26px/1.4 Lora,serif;color:var(--vermesc)}.frase cite{display:block;margin-top:12px;font:15px Lora,serif;color:var(--suave)}
+.livro-cta{display:grid;grid-template-columns:200px 1fr;gap:34px;align-items:center;max-width:820px;margin:0 auto;padding:30px 36px;background:var(--papel);border:2px solid var(--verm);border-radius:18px;outline:4px solid var(--creme);box-shadow:0 0 0 6px var(--ouro)}.livro-cta h2{font-size:38px;margin:0 0 .2em}.livro-cta .mini{width:200px;aspect-ratio:3/4;object-fit:cover;object-position:50% 50%;border:2px solid var(--ouro);border-radius:10px;box-shadow:0 0 0 5px var(--verm)}
+@media(max-width:700px){.hero{padding:22px 20px}.hero h1{font-size:60px}.hero-img{transform:none}}@media(max-width:600px){.livro-cta{grid-template-columns:100px 1fr;padding:18px}.livro-cta .mini{width:100px}.selo-hero{left:8px}}
+footer{text-align:center;color:var(--suave);padding:24px;border-top:3px solid var(--ouro)}.coracao{color:var(--verm)}
+@media(max-width:760px){.hero{grid-template-columns:1fr}.hero h1{font-size:56px}.item{padding:6px 18px 28px}.item h1{font-size:38px}h1{font-size:34px}}
+.intro-poema{color:var(--suave);text-align:center;margin:18px 0 6px}.poema{margin:10px auto 0;max-width:460px;text-align:center;font:italic 20px/1.55 Lora,serif;color:var(--vermesc);padding:10px 0 4px;border-top:2px dotted var(--ouro);border-bottom:2px dotted var(--ouro)}.estrofe{margin:0 0 1.1em}.poema-tit{font:400 32px Playball,cursive;color:var(--verm);border:0;margin:1.2em 0 .4em}.assina{text-align:right;font:26px Playball,cursive;color:var(--verm);margin:10px 0 0}
+/* ---- mobile ---- */
+@media(max-width:700px){
+header{padding:12px 16px;gap:2px}.logo{font-size:36px}
+header{flex-wrap:wrap}.menu-btn{display:block}header nav{display:none;flex-direction:column;width:100%;gap:0;border-top:2px dotted var(--ouro);margin-top:8px}header.aberto nav{display:flex}header nav a{margin:0;padding:12px 4px;font-size:18px;border-bottom:1px dotted var(--ouro)}header nav a:last-child{border-bottom:0}
+main{padding:20px 14px 40px}
+.hero{grid-template-columns:minmax(0,1fr);gap:22px;padding:22px 18px}.hero>*{min-width:0}
+.hero-img{max-width:210px}
+.busca{gap:6px}.busca input{min-width:0;padding:11px 14px}.busca button{padding:11px 16px}
+.hero h1{font-size:56px}.hero .script{font-size:26px}.lead{font-size:17px}.numeros a{padding:4px 12px}
+.sec{font-size:32px}
+.cards{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.card{padding:10px}.card .foto{height:110px}.card b{font-size:15px;line-height:1.3}
+.frase{font-size:19px;padding:18px}
+.livro-cta{grid-template-columns:1fr;text-align:center;justify-items:center;padding:22px 18px;gap:16px}.livro-cta .mini{width:120px}.livro-cta h2{font-size:32px;line-height:1.2}
+.botao{white-space:nowrap}
+.item{padding:6px 16px 26px}.item h1{font-size:34px}
+.passos{grid-template-columns:1fr}.nav-p{text-align:left}
+.lista{columns:1}
+.hero-img{transform:none}
+}
+@media(prefers-reduced-motion:reduce){.cor{transition:none}}
+'''
+open(S + '/estilo.css', 'w', encoding='utf-8').write(CSS)
+
+JS = r'''
+(function(){
+var mb=document.querySelector('.menu-btn');if(mb){mb.addEventListener('click',function(){var h=mb.closest('header'),a=h.classList.toggle('aberto');mb.setAttribute('aria-expanded',a);mb.setAttribute('aria-label',a?'Fechar menu':'Abrir menu')})}
+var fs=document.querySelectorAll('.colorir');
+if('IntersectionObserver' in window&&fs.length){var o=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting&&matchMedia('(hover:none)').matches)e.target.classList.add('ativo')})},{threshold:.6});fs.forEach(function(f){o.observe(f);f.addEventListener('click',function(){f.classList.toggle('ativo')})})}
+var L=document.getElementById('lista');if(!L||!window.INDICE)return;
+var q=document.getElementById('q'),cont=document.getElementById('cont'),tipo='';
+var p=new URLSearchParams(location.search);q.value=p.get('q')||'';tipo=p.get('t')||'';
+function norm(s){return s.normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase()}
+function esc(s){return s.replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
+function render(){var t=norm(q.value.trim()),r=window.INDICE.filter(function(i){return(!tipo||i.k===tipo)&&(!t||norm(i.t+' '+i.f.join(' ')+' '+i.x).indexOf(t)>-1)});
+L.innerHTML=r.map(function(i){return'<li><a href="r-'+i.s+'.html">'+esc(i.t)+'</a>'+(i.f.length?' <small>♥ '+esc(i.f.join(', '))+'</small>':'')+'</li>'}).join('');
+cont.textContent=r.length+' resultado'+(r.length===1?'':'s');
+document.querySelectorAll('.filtros button').forEach(function(b){b.classList.toggle('on',b.dataset.t===tipo)})}
+q.addEventListener('input',render);document.querySelectorAll('.filtros button').forEach(function(b){b.addEventListener('click',function(){tipo=b.dataset.t;render()})});render();
+})();
+'''
+open(S + '/app.js', 'w', encoding='utf-8').write(JS)
+print(len(itens), 'paginas em', S)
