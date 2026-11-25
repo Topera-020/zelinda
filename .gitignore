@@ -1,6 +1,6 @@
 build/
 livro.docx
-livro.pdf
+/livro.pdf
 __pycache__/
 *.pyc
 .env

@@ -7,6 +7,22 @@ shutil.copytree(B + '/img', S + '/img')
 if os.path.isdir(B + '/colorido'):
     shutil.copytree(B + '/colorido', S + '/colorido', ignore=shutil.ignore_patterns('*_comparacao.png'))
 shutil.copy(ROOT + '/zelinda.jpeg', S + '/capa.jpg')   # capa do livro
+# livro para baixar: capa como 1a pagina + livro.pdf (o livro.pdf original nao e alterado)
+PDF = None
+if os.path.exists(ROOT + '/livro.pdf'):
+    import pymupdf
+    doc = pymupdf.open(ROOT + '/livro.pdf'); r = doc[0].rect
+    capa = pymupdf.Pixmap(ROOT + '/zelinda.jpeg')
+    alt = r.width * capa.height / capa.width          # capa na largura da pagina; o que sobra em cima/embaixo e cortado
+    doc.new_page(0, width=r.width, height=r.height).insert_image(
+        pymupdf.Rect(0, (r.height - alt) / 2, r.width, (r.height + alt) / 2), filename=ROOT + '/zelinda.jpeg')
+    m = doc.metadata
+    doc.set_metadata({k: m.get(k) or '' for k in ('author', 'subject', 'keywords', 'creator', 'producer', 'creationDate', 'modDate')}
+                     | {'title': 'Memórias e Receitas de Dona Zelinda'})
+    doc.save(S + '/livro.pdf', garbage=3, deflate=True)
+    PDF = (doc.page_count, os.path.getsize(S + '/livro.pdf') / 1e6)
+    doc.close()
+BAIXAR = 'href="livro.pdf" download="Memorias-e-Receitas-de-Dona-Zelinda.pdf"' if PDF else 'href="livro.html"'
 open(S + '/.nojekyll', 'w').close()
 E = html.escape
 
@@ -191,7 +207,7 @@ chips = ''.join(f'<a class="chip" href="familiares.html#{E(f)}">♥ {E(f)} <smal
 
 home = f'''<section class="hero"><div class="hero-txt"><p class="script">Memórias e Receitas de</p><h1>Dona Zelinda</h1>
 <p class="lead">Receitas de família, histórias da cozinha e os desenhos de quem viveu tudo isso.</p>
-<form class="busca" action="receitas.html" method="get"><input name="q" placeholder="Receita, ingrediente ou nome…" autocomplete="off"><button>Buscar</button></form>
+<form class="busca" action="receitas.html" method="get"><span class="campo"><input name="q" placeholder="Receita, ingrediente ou nome…" autocomplete="off" aria-label="Buscar receitas e memórias"></span><button>Buscar</button></form>
 <p class="numeros"><a href="receitas.html?t=receita"><b>{nrec}</b> receitas</a><a href="receitas.html?t=memoria"><b>{nmem}</b> memórias</a><a href="familiares.html"><b>{len(cont)}</b> familiares</a></p></div>
 <div class="hero-img"><img src="capa.jpg" alt="Capa do livro"><span class="selo-hero">♥ feito com amor</span></div></section>
 {DIV}
@@ -200,7 +216,7 @@ home = f'''<section class="hero"><div class="hero-txt"><p class="script">Memóri
 {DIV}
 <section><h2 class="script sec sub">Quem aparece nas histórias</h2><p class="chips">{chips}<a class="chip todos" href="familiares.html">ver todos os {len(cont)} →</a></p></section>
 <section class="faixa"><blockquote class="frase">“{E(frase)}”<cite>do capítulo “{E(frase_de)}”</cite></blockquote></section>
-<section class="livro-cta"><img src="capa.jpg" alt="" class="mini"><div><h2 class="script">Leve o livro com você</h2><p>Todas as histórias e receitas em um só arquivo, para ler no sofá ou imprimir para a cozinha.</p><a class="botao" href="livro.html">Baixar o livro (PDF)</a></div></section>'''
+<section class="livro-cta"><img src="capa.jpg" alt="" class="mini"><div><h2 class="script">Leve o livro com você</h2><p>Todas as histórias e receitas em um só arquivo, para ler no sofá ou imprimir para a cozinha.</p><a class="botao" {BAIXAR}>Baixar o livro (PDF)</a></div></section>'''
 open(S + '/index.html', 'w', encoding='utf-8').write(pagina('Início', home))
 
 lista = '''<h1 class="script">Receitas e memórias</h1><form class="busca" onsubmit="return false"><input id="q" placeholder="Buscar…" autocomplete="off"></form>
@@ -221,7 +237,15 @@ def secao(f, v):
 corpo = '<h1 class="script">Por familiar</h1>' + ''.join(
     secao(f, v) for f, v in sorted(fams.items(), key=lambda kv: (kv[0] == 'Sem marcação', kv[0])))
 open(S + '/familiares.html', 'w', encoding='utf-8').write(pagina('Por familiar', '<div class="item largo">' + corpo + '</div>', 'f'))
-open(S + '/livro.html', 'w', encoding='utf-8').write(pagina('O livro', '<div class="item"><h1 class="script">O livro</h1><p>Aqui ficará o botão para baixar o livro completo em PDF.</p><p><a class="botao" href="#">Baixar PDF (em breve)</a></p></div>', 'l'))
+if PDF:
+    mb = f'{PDF[1]:.1f}'.replace('.', ',')
+    livro = (f'<h1 class="script" style="text-align:center">O livro</h1><section class="livro-cta"><img src="capa.jpg" alt="Capa do livro" class="mini"><div>'
+             f'<h2 class="script">Leve o livro com você</h2><p>Todas as histórias e receitas de Dona Zelinda em um só arquivo, para ler no sofá ou imprimir para a cozinha.</p>'
+             f'<p class="leg">PDF · {PDF[0]} páginas · {mb} MB</p>'
+             f'<p><a class="botao" {BAIXAR}>Baixar o livro (PDF)</a></p><p><a href="livro.pdf" target="_blank" rel="noopener">ou ler no navegador</a></p></div></section>')
+else:
+    livro = '<div class="item"><h1 class="script">O livro</h1><p>Aqui ficará o botão para baixar o livro completo em PDF.</p><p><a class="botao" href="#">Baixar PDF (em breve)</a></p></div>'
+open(S + '/livro.html', 'w', encoding='utf-8').write(pagina('O livro', livro, 'l'))
 
 
 # icone do site: coracao vermelho
@@ -257,6 +281,12 @@ h1{font:400 44px/1.15 Lora,serif;margin:.2em 0}h2{font-size:26px}h3{font-size:20
 .busca{display:flex;gap:8px;margin:18px 0}.busca input{flex:1;padding:12px 16px;font:inherit;border:2px solid var(--verm);border-radius:999px;background:var(--papel)}
 .busca button,.botao{background:var(--verm);color:#fff;border:0;border-radius:999px;padding:12px 22px;font:inherit;text-decoration:none;cursor:pointer}.botao:hover,.busca button:hover{background:var(--vermesc)}
 .atalhos a{margin-right:16px}.atalhos .botao{margin:0}
+form.busca{position:relative}.campo{flex:1;min-width:0;display:flex}.campo input{width:100%}
+.sugest{position:absolute;z-index:20;top:calc(100% + 6px);left:0;right:0;margin:0;padding:6px;list-style:none;background:var(--papel);border:2px solid var(--verm);border-radius:14px;box-shadow:0 12px 26px rgba(43,33,28,.2);max-height:min(60vh,430px);overflow:auto;text-align:left}
+.sugest a{display:block;padding:7px 12px;border-radius:10px;text-decoration:none;color:var(--tinta);font-size:16px;line-height:1.3}
+.sugest small{color:var(--suave);font-size:13px}.sg-tipo{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--suave)}
+.sugest li.on a,.sugest a:hover{background:var(--verm);color:#fff}.sugest li.on small,.sugest a:hover small,.sugest li.on .sg-tipo,.sugest a:hover .sg-tipo{color:#fff}
+.sg-todos{border-top:1px dotted var(--ouro);margin-top:4px;padding-top:4px}.sg-todos a{color:var(--verm);font-weight:600}.sg-vazio{padding:8px 12px;color:var(--suave);font-size:16px}
 .cards{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}@media(max-width:900px){.cards{grid-template-columns:repeat(2,1fr)}}@media(max-width:520px){.cards{grid-template-columns:1fr}}.card{background:var(--papel);border:2px solid var(--verm);border-radius:12px;padding:16px;text-decoration:none;color:var(--tinta);display:flex;flex-direction:column;gap:6px}.card:hover{border-color:var(--ouro);transform:translateY(-2px)}
 .tipo{font-size:13px;text-transform:uppercase;letter-spacing:.08em;color:var(--suave)}.leg{color:var(--suave);font-size:15px}
 .item{max-width:760px;margin:0 auto;background:var(--papel);border:2px solid var(--verm);border-radius:14px;padding:10px 40px 40px;outline:4px solid var(--creme);box-shadow:0 0 0 6px var(--ouro)}
@@ -313,6 +343,29 @@ JS = r'''
 var mb=document.querySelector('.menu-btn');if(mb){mb.addEventListener('click',function(){var h=mb.closest('header'),a=h.classList.toggle('aberto');mb.setAttribute('aria-expanded',a);mb.setAttribute('aria-label',a?'Fechar menu':'Abrir menu')})}
 var fs=document.querySelectorAll('.colorir');
 if('IntersectionObserver' in window&&fs.length){var o=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting&&matchMedia('(hover:none)').matches)e.target.classList.add('ativo')})},{threshold:.6});fs.forEach(function(f){o.observe(f);f.addEventListener('click',function(){f.classList.toggle('ativo')})})}
+var bi=document.querySelector('form.busca[action] input');
+if(bi){var bf=bi.form,box=document.createElement('ul'),sel=-1,opts=[],pedido=false;
+box.className='sugest';box.id='sugest';box.setAttribute('role','listbox');box.hidden=true;bi.parentNode.appendChild(box);
+bi.setAttribute('role','combobox');bi.setAttribute('aria-autocomplete','list');bi.setAttribute('aria-controls','sugest');bi.setAttribute('aria-expanded','false');
+var carregar=function(){if(window.INDICE||pedido)return;pedido=true;var s=document.createElement('script');s.src='indice.js';s.onload=sugerir;document.head.appendChild(s)};
+var fechar=function(){box.hidden=true;sel=-1;bi.setAttribute('aria-expanded','false');bi.removeAttribute('aria-activedescendant')};
+var marcar=function(){opts.forEach(function(a,k){a.parentNode.classList.toggle('on',k===sel);a.parentNode.setAttribute('aria-selected',k===sel)});
+if(sel>-1){bi.setAttribute('aria-activedescendant',opts[sel].parentNode.id);opts[sel].scrollIntoView({block:'nearest'})}else bi.removeAttribute('aria-activedescendant')};
+var sugerir=function(){var v=bi.value.trim(),t=norm(v);if(!t||!window.INDICE){fechar();return}
+var r=window.INDICE.map(function(i){var a=norm(i.t),p=a.indexOf(t),n=p===0?0:p>-1?1:norm(i.f.join(' ')).indexOf(t)>-1?2:norm(i.x).indexOf(t)>-1?3:-1;return{i:i,n:n}}).filter(function(o){return o.n>-1});
+r.sort(function(a,b){return a.n-b.n});
+box.innerHTML=r.length?r.slice(0,8).map(function(o,k){var i=o.i;return'<li id="sg'+k+'" role="option"><a href="r-'+i.s+'.html"><span class="sg-tipo">'+(i.k==='receita'?'Receita':'Memória')+'</span>'+esc(i.t)+(i.f.length?' <small>♥ '+esc(i.f.join(', '))+'</small>':'')+'</a></li>'}).join('')
++'<li id="sgt" class="sg-todos" role="option"><a href="receitas.html?q='+encodeURIComponent(v)+'">Ver '+(r.length===1?'o resultado':'todos os '+r.length+' resultados')+' →</a></li>'
+:'<li class="sg-vazio">Nada encontrado para “'+esc(v)+'”</li>';
+opts=[].slice.call(box.querySelectorAll('a'));sel=-1;marcar();box.hidden=false;bi.setAttribute('aria-expanded','true')};
+bi.addEventListener('input',function(){carregar();sugerir()});
+bi.addEventListener('focus',function(){carregar();if(bi.value.trim())sugerir()});
+bi.addEventListener('keydown',function(e){if(e.key==='Escape'){fechar();return}
+if(box.hidden||!opts.length)return;
+if(e.key==='ArrowDown'){e.preventDefault();sel=sel+1<opts.length?sel+1:0;marcar()}
+else if(e.key==='ArrowUp'){e.preventDefault();sel=sel>0?sel-1:opts.length-1;marcar()}
+else if(e.key==='Enter'&&sel>-1){e.preventDefault();location.href=opts[sel].href}});
+document.addEventListener('click',function(e){if(!bf.contains(e.target))fechar()})}
 var L=document.getElementById('lista');if(!L||!window.INDICE)return;
 var q=document.getElementById('q'),cont=document.getElementById('cont'),tipo='';
 var p=new URLSearchParams(location.search);q.value=p.get('q')||'';tipo=p.get('t')||'';

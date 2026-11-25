@@ -38,12 +38,15 @@ def em_branco(caminho):
 
 # --- imagens: salvar na ordem do documento
 img_n = 0
+TODAS = set(os.listdir(OUT + '/img_todas')) if os.path.isdir(OUT + '/img_todas') else None
 def salvar_imgs(p):
     global img_n
     nomes = []
     for rid in p._p.xpath('.//a:blip/@r:embed'):
         part = d.part.related_parts[rid]
-        img_n += 1
+        img_n += 1                      # conta mesmo as puladas, para os nomes imgNNN nao mudarem
+        if TODAS is not None and os.path.basename(part.partname) not in TODAS:
+            continue                    # apagada a mao de build/img_todas: imagem errada, nao entra no site
         ext = os.path.splitext(part.partname)[1] or '.bin'
         nome = f'img{img_n:03d}{ext}'
         caminho = os.path.join(OUT, 'img', nome)
