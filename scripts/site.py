@@ -6,7 +6,7 @@ shutil.rmtree(S, ignore_errors=True); os.makedirs(S)
 shutil.copytree(B + '/img', S + '/img')
 if os.path.isdir(B + '/colorido'):
     shutil.copytree(B + '/colorido', S + '/colorido', ignore=shutil.ignore_patterns('*_comparacao.png'))
-shutil.copy(B + '/capa_original.jpg', S + '/capa.jpg')
+shutil.copy(ROOT + '/zelinda.jpeg', S + '/capa.jpg')   # capa do livro
 open(S + '/.nojekyll', 'w').close()
 E = html.escape
 
@@ -253,7 +253,7 @@ main{max-width:1080px;margin:0 auto;padding:30px 20px 50px}a{color:var(--vermesc
 h1{font:400 44px/1.15 Lora,serif;margin:.2em 0}h2{font-size:26px}h3{font-size:20px;color:var(--vermesc);margin:1.4em 0 .3em;border-bottom:2px dotted var(--ouro);padding-bottom:4px}
 .hero{display:grid;grid-template-columns:1.5fr .7fr;gap:30px;align-items:center;margin:0 0 34px;padding:38px 42px;background:var(--papel);border:2px solid var(--verm);border-radius:18px;outline:4px solid var(--creme);box-shadow:0 0 0 6px var(--ouro),0 14px 30px rgba(43,33,28,.18)}
 .hero .script{font-size:34px;margin:0}.hero h1{font:400 88px/1 Playball,cursive;color:var(--verm);margin:0 0 .2em}
-.hero-img img{width:100%;aspect-ratio:3/4;object-fit:cover;object-position:50% 52%;border:3px solid var(--ouro);border-radius:14px;outline:6px solid var(--creme);box-shadow:0 0 0 8px var(--verm)}
+.hero-img img{display:block;width:100%;height:auto;border:3px solid var(--ouro);border-radius:14px;outline:6px solid var(--creme);box-shadow:0 0 0 8px var(--verm)}
 .busca{display:flex;gap:8px;margin:18px 0}.busca input{flex:1;padding:12px 16px;font:inherit;border:2px solid var(--verm);border-radius:999px;background:var(--papel)}
 .busca button,.botao{background:var(--verm);color:#fff;border:0;border-radius:999px;padding:12px 22px;font:inherit;text-decoration:none;cursor:pointer}.botao:hover,.busca button:hover{background:var(--vermesc)}
 .atalhos a{margin-right:16px}.atalhos .botao{margin:0}
@@ -280,7 +280,7 @@ blockquote{margin:1em 0;padding:6px 18px;border-left:4px solid var(--verm);font-
 .chips{display:flex;flex-wrap:wrap;gap:8px}.chip{background:var(--papel);border:2px solid var(--verm);border-radius:999px;padding:4px 14px;text-decoration:none;color:var(--tinta)}.chip small{color:var(--suave)}.chip:hover{background:var(--verm);color:#fff}.chip:hover small{color:#fff}
 .faixa{margin:44px calc(50% - 50vw);padding:50px 20px;background:var(--verm) repeating-conic-gradient(rgba(255,255,255,.12) 0 25%,transparent 0 50%) 0 0/36px 36px;text-align:center;border-top:3px solid var(--ouro);border-bottom:3px solid var(--ouro)}
 .frase{max-width:760px;margin:0 auto;padding:26px 30px;background:var(--papel);border:3px double var(--ouro);border-radius:12px;font:italic 26px/1.4 Lora,serif;color:var(--vermesc)}.frase cite{display:block;margin-top:12px;font:15px Lora,serif;color:var(--suave)}
-.livro-cta{display:grid;grid-template-columns:200px 1fr;gap:34px;align-items:center;max-width:820px;margin:0 auto;padding:30px 36px;background:var(--papel);border:2px solid var(--verm);border-radius:18px;outline:4px solid var(--creme);box-shadow:0 0 0 6px var(--ouro)}.livro-cta h2{font-size:38px;margin:0 0 .2em}.livro-cta .mini{width:200px;aspect-ratio:3/4;object-fit:cover;object-position:50% 50%;border:2px solid var(--ouro);border-radius:10px;box-shadow:0 0 0 5px var(--verm)}
+.livro-cta{display:grid;grid-template-columns:200px 1fr;gap:34px;align-items:center;max-width:820px;margin:0 auto;padding:30px 36px;background:var(--papel);border:2px solid var(--verm);border-radius:18px;outline:4px solid var(--creme);box-shadow:0 0 0 6px var(--ouro)}.livro-cta h2{font-size:38px;margin:0 0 .2em}.livro-cta .mini{display:block;width:200px;height:auto;border:2px solid var(--ouro);border-radius:10px;box-shadow:0 0 0 5px var(--verm)}
 @media(max-width:700px){.hero{padding:22px 20px}.hero h1{font-size:60px}.hero-img{transform:none}}@media(max-width:600px){.livro-cta{grid-template-columns:100px 1fr;padding:18px}.livro-cta .mini{width:100px}.selo-hero{left:8px}}
 footer{text-align:center;color:var(--suave);padding:24px;border-top:3px solid var(--ouro)}.coracao{color:var(--verm)}
 @media(max-width:760px){.hero{grid-template-columns:1fr}.hero h1{font-size:56px}.item{padding:6px 18px 28px}.item h1{font-size:38px}h1{font-size:34px}}
