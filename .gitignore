@@ -6,3 +6,8 @@ __pycache__/
 .env
 borboleta.gif
 assets/borboleta.webp
+# musicas originais (o site usa assets/musicas e o YouTube)
+/*.mp4
+/*.mp3
+/*.mpeg
+/Zelinda Gomes - *.jpg

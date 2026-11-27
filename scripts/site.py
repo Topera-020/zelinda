@@ -19,7 +19,7 @@ if os.path.exists(ROOT + '/livro.pdf'):
     m = doc.metadata
     doc.set_metadata({k: m.get(k) or '' for k in ('author', 'subject', 'keywords', 'creator', 'producer', 'creationDate', 'modDate')}
                      | {'title': 'Memórias e Receitas de Dona Zelinda'})
-    doc.save(S + '/livro.pdf', garbage=3, deflate=True)
+    doc.save(S + '/livro.pdf', garbage=3, deflate=True, no_new_id=True)
     PDF = (doc.page_count, os.path.getsize(S + '/livro.pdf') / 1e6)
     doc.close()
 BAIXAR = 'href="livro.pdf" download="Memorias-e-Receitas-de-Dona-Zelinda.pdf"' if PDF else 'href="livro.html"'
@@ -108,7 +108,7 @@ def pagina(titulo, corpo, ativo=''):
     return f'''<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>{E(titulo)} — Zelinda</title>{FONTES}<link rel="icon" href="favicon.svg" type="image/svg+xml"><link rel="icon" href="favicon.ico" sizes="any"><link rel="apple-touch-icon" href="apple-touch-icon.png"><link rel="stylesheet" href="estilo.css"></head><body>
 <div class="xadrez"></div>
-<div class="topo"><header><a class="logo" href="index.html">Zelinda</a><button class="menu-btn" type="button" aria-label="Abrir menu" aria-expanded="false" aria-controls="menu"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#c8283a" stroke-width="2.4" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button><nav id="menu">{nav("receitas.html?t=receita","Receitas","r")}{nav("receitas.html?t=memoria","Memórias","m")}{nav("familiares.html","Por familiar","f")}{nav("livro.html","O livro","l")}</nav></header></div>
+<div class="topo"><header><a class="logo" href="index.html">Zelinda</a><button class="menu-btn" type="button" aria-label="Abrir menu" aria-expanded="false" aria-controls="menu"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#c8283a" stroke-width="2.4" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button><nav id="menu">{nav("receitas.html?t=receita","Receitas","r")}{nav("receitas.html?t=memoria","Memórias","m")}{nav("familiares.html","Por familiar","f")}{nav("musicas.html","Músicas","u")}{nav("livro.html","O livro","l")}</nav></header></div>
 <main>{corpo}</main>
 <footer><span class="coracao">♥</span> Memórias e Receitas de Dona Zelinda</footer><script src="app.js"></script></body></html>'''
 
@@ -149,6 +149,42 @@ def botoes(it):
     return ''.join(f'<a class="par" href="r-{o["slug"]}.html">Ver a receita: {E(o["titulo"])}</a>' for o in it['liga'])
 
 
+# musicas de Zelinda Gomes no YouTube: (titulo, id do video, capa em assets/musicas, historia do livro ligada)
+MUSICAS = [
+    ('Sorriso e um Abraço', 'S1gIQM2viv4', 'sorriso-e-um-abraco', None),
+    ('Na Tesoura e no Canto', 'gtaIPdJ2Stc', 'na-tesoura-e-no-canto', None),
+    ('A Lida do Nosso Chão', 'x5WvdiWxH5w', 'a-lida-do-nosso-chao', None),
+    ('Festa no Jardim da Vovó', '0xmnJoMOeng', 'festa-no-jardim-da-vovo', None),
+    ('A Nossa Zelinda Chegou', 'ZEE9Vb4bBRM', 'a-nossa-zelinda-chegou', None),
+    ('Alho no Café', 'dNT0nZ7qB0E', 'alho-no-cafe', 'o-famoso-cafe-com-alho-servido-as-irmas'),
+    ('Noite do Autógrafo', 'dSn8dAIi0AU', 'noite-do-autografo', None),
+    ('O Sim de José Arnaldo', '3sbg6jiN7_c', 'o-sim-de-jose-arnaldo', 'o-doce-oficio-da-noiva-o-casamento-de-zelinda-e-jose-arnaldo'),
+]
+shutil.copytree(ROOT + '/assets/musicas', S + '/musicas')
+POR_SLUG = {i['slug']: i for i in itens}
+
+
+def player(t, vid, capa):
+    """capa da musica; o video do YouTube so carrega quando a pessoa aperta o play"""
+    return (f'<button class="yt" type="button" data-id="{vid}" aria-label="Tocar {E(t)}"><img src="musicas/{capa}.jpg" alt="" loading="lazy">'
+            f'<span class="play"><svg viewBox="0 0 24 24" width="30" height="30" aria-hidden="true"><path d="M8 5v14l11-7z" fill="#fff"/></svg></span></button>')
+
+
+def musica_card(m, com_historia=True):
+    t, vid, capa, hist = m
+    h = POR_SLUG.get(hist) if com_historia else None
+    liga = f'<a href="r-{hist}.html">Da história: {E(h["titulo"])}</a> · ' if h else ''
+    return (f'<div class="musica">{player(t, vid, capa)}<h2>{E(t)}</h2>'
+            f'<p class="leg">{liga}<a href="https://youtu.be/{vid}" target="_blank" rel="noopener">ouvir no YouTube</a></p></div>')
+
+
+def musica_da_historia(it):
+    ms = [m for m in MUSICAS if m[3] == it['slug']]
+    if not ms:
+        return ''
+    return '<section class="musica-hist"><h2 class="script">♪ A música desta história</h2>' + ''.join(musica_card(m, False) for m in ms) + '</section>'
+
+
 def cap(it):
     if not it['parte']:
         return ''
@@ -160,7 +196,7 @@ for it in itens:
     tag = 'Receita' if it['tipo'] == 'receita' else 'Memória'
     corpo = f'''<article class="item"><p class="trilha"><a href="index.html">Início</a> › <a href="receitas.html?t={it["tipo"]}">{tag}s</a></p>
 <h1>{E(it["titulo"])}</h1><p class="meta">{cap(it)}{fam}</p>
-{poema_html(it["corpo"]) if it["slug"] == "meus-netos" else corpo_html(it["corpo"])}<div class="pares">{botoes(it)}</div>{navegacao(it)}</article>'''
+{poema_html(it["corpo"]) if it["slug"] == "meus-netos" else corpo_html(it["corpo"])}{musica_da_historia(it)}<div class="pares">{botoes(it)}</div>{navegacao(it)}</article>'''
     open(f'{S}/r-{it["slug"]}.html', 'w', encoding='utf-8').write(pagina(it['titulo'], corpo))
 
 idx = [dict(s=i['slug'], t=i['titulo'], k=i['tipo'], f=i['familiar'], x=re.sub(r'\s+', ' ', i['texto'])[:6000].lower()) for i in itens]
@@ -208,7 +244,7 @@ chips = ''.join(f'<a class="chip" href="familiares.html#{E(f)}">♥ {E(f)} <smal
 home = f'''<section class="hero"><div class="hero-txt"><p class="script">Memórias e Receitas de</p><h1>Dona Zelinda</h1>
 <p class="lead">Receitas de família, histórias da cozinha e os desenhos de quem viveu tudo isso.</p>
 <form class="busca" action="receitas.html" method="get"><span class="campo"><input name="q" placeholder="Receita, ingrediente ou nome…" autocomplete="off" aria-label="Buscar receitas e memórias"></span><button>Buscar</button></form>
-<p class="numeros"><a href="receitas.html?t=receita"><b>{nrec}</b> receitas</a><a href="receitas.html?t=memoria"><b>{nmem}</b> memórias</a><a href="familiares.html"><b>{len(cont)}</b> familiares</a></p></div>
+<p class="numeros"><a href="receitas.html?t=receita"><b>{nrec}</b> receitas</a><a href="receitas.html?t=memoria"><b>{nmem}</b> memórias</a><a href="familiares.html"><b>{len(cont)}</b> familiares</a><a href="musicas.html"><b>{len(MUSICAS)}</b> músicas</a></p></div>
 <div class="hero-img"><img src="capa.jpg" alt="Capa do livro"><span class="selo-hero">♥ feito com amor</span></div></section>
 {DIV}
 <section><h2 class="script sec">Para começar</h2><div class="cards">{''.join(card(i) for i in destaque)}</div>
@@ -247,6 +283,10 @@ else:
     livro = '<div class="item"><h1 class="script">O livro</h1><p>Aqui ficará o botão para baixar o livro completo em PDF.</p><p><a class="botao" href="#">Baixar PDF (em breve)</a></p></div>'
 open(S + '/livro.html', 'w', encoding='utf-8').write(pagina('O livro', livro, 'l'))
 
+musicas = (f'<h1 class="script" style="text-align:center">Músicas</h1><p class="lead" style="text-align:center">As músicas de Zelinda Gomes. Aperte o play na capa para ouvir.</p>'
+           f'<div class="musicas">{"".join(musica_card(m) for m in MUSICAS)}</div>')
+open(S + '/musicas.html', 'w', encoding='utf-8').write(pagina('Músicas', musicas, 'u'))
+
 
 # icone do site: coracao vermelho
 SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><path d="M16 28.5C4 20.5 1.5 14 1.5 9.8 1.5 5.4 4.8 2.5 8.6 2.5c3 0 5.6 1.7 7.4 4.6 1.8-2.9 4.4-4.6 7.4-4.6 3.8 0 7.1 2.9 7.1 7.3 0 4.2-2.5 10.7-14.5 18.7z" fill="#d6283b"/><ellipse cx="9.2" cy="9" rx="3.2" ry="2" transform="rotate(-35 9.2 9)" fill="#fff" opacity=".55"/></svg>'
@@ -281,7 +321,13 @@ h1{font:400 44px/1.15 Lora,serif;margin:.2em 0}h2{font-size:26px}h3{font-size:20
 .busca{display:flex;gap:8px;margin:18px 0}.busca input{flex:1;padding:12px 16px;font:inherit;border:2px solid var(--verm);border-radius:999px;background:var(--papel)}
 .busca button,.botao{background:var(--verm);color:#fff;border:0;border-radius:999px;padding:12px 22px;font:inherit;text-decoration:none;cursor:pointer}.botao:hover,.busca button:hover{background:var(--vermesc)}
 .atalhos a{margin-right:16px}.atalhos .botao{margin:0}
-form.busca{position:relative}.campo{flex:1;min-width:0;display:flex}.campo input{width:100%}
+form.busca{position:relative}.musicas{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:22px;margin-top:20px}
+.musica{background:var(--papel);border:2px solid var(--verm);border-radius:14px;padding:12px;display:flex;flex-direction:column;gap:6px}.musica h2{font:400 28px/1.15 Playball,cursive;color:var(--verm);margin:6px 0 0}.musica .leg{margin:0;font-size:14px}
+.yt{position:relative;display:block;width:100%;aspect-ratio:1;padding:0;border:0;border-radius:10px;overflow:hidden;cursor:pointer;background:#2b211c}.yt img{display:block;width:100%;height:100%;object-fit:cover;transition:transform .4s}.yt:hover img{transform:scale(1.03)}
+.yt .play{position:absolute;left:50%;top:50%;width:66px;height:66px;margin:-33px 0 0 -33px;border-radius:50%;background:var(--verm);box-shadow:0 3px 0 var(--vermesc),0 0 0 4px rgba(255,255,255,.85);display:flex;align-items:center;justify-content:center;padding-left:4px;transition:transform .2s}.yt:hover .play,.yt:focus-visible .play{transform:scale(1.08)}
+.yt iframe{display:block;width:100%;height:100%;border:0}
+.musica-hist{margin:30px 0 6px;padding-top:18px;border-top:3px dotted var(--ouro)}.musica-hist>h2{font-size:30px;margin:0 0 12px;color:var(--verm)}.musica-hist .musica{max-width:360px}
+.campo{flex:1;min-width:0;display:flex}.campo input{width:100%}
 .sugest{position:absolute;z-index:20;top:calc(100% + 6px);left:0;right:0;margin:0;padding:6px;list-style:none;background:var(--papel);border:2px solid var(--verm);border-radius:14px;box-shadow:0 12px 26px rgba(43,33,28,.2);max-height:min(60vh,430px);overflow:auto;text-align:left}
 .sugest a{display:block;padding:7px 12px;border-radius:10px;text-decoration:none;color:var(--tinta);font-size:16px;line-height:1.3}
 .sugest small{color:var(--suave);font-size:13px}.sg-tipo{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--suave)}
@@ -332,6 +378,7 @@ main{padding:20px 14px 40px}
 .item{padding:6px 16px 26px}.item h1{font-size:34px}
 .passos{grid-template-columns:1fr}.nav-p{text-align:left}
 .lista{columns:1}
+.musicas{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.musica{padding:8px}.musica h2{font-size:21px}.yt .play{width:48px;height:48px;margin:-24px 0 0 -24px}.yt .play svg{width:22px;height:22px}
 .hero-img{transform:none}
 }
 @media(prefers-reduced-motion:reduce){.cor{transition:none}}
@@ -343,6 +390,10 @@ JS = r'''
 var mb=document.querySelector('.menu-btn');if(mb){mb.addEventListener('click',function(){var h=mb.closest('header'),a=h.classList.toggle('aberto');mb.setAttribute('aria-expanded',a);mb.setAttribute('aria-label',a?'Fechar menu':'Abrir menu')})}
 var fs=document.querySelectorAll('.colorir');
 if('IntersectionObserver' in window&&fs.length){var o=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting&&matchMedia('(hover:none)').matches)e.target.classList.add('ativo')})},{threshold:.6});fs.forEach(function(f){o.observe(f);f.addEventListener('click',function(){f.classList.toggle('ativo')})})}
+document.querySelectorAll('.yt').forEach(function(b){b.addEventListener('click',function(){
+var f=document.createElement('iframe');f.src='https://www.youtube-nocookie.com/embed/'+b.dataset.id+'?autoplay=1&rel=0';
+f.title=b.getAttribute('aria-label');f.allow='autoplay; encrypted-media; picture-in-picture; fullscreen';f.allowFullscreen=true;
+var d=document.createElement('div');d.className='yt';d.appendChild(f);b.replaceWith(d)})});
 var bi=document.querySelector('form.busca[action] input');
 if(bi){var bf=bi.form,box=document.createElement('ul'),sel=-1,opts=[],pedido=false;
 box.className='sugest';box.id='sugest';box.setAttribute('role','listbox');box.hidden=true;bi.parentNode.appendChild(box);
