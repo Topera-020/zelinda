@@ -159,6 +159,7 @@ MUSICAS = [
     ('Alho no Café', 'dNT0nZ7qB0E', 'alho-no-cafe', 'o-famoso-cafe-com-alho-servido-as-irmas'),
     ('Noite do Autógrafo', 'dSn8dAIi0AU', 'noite-do-autografo', None),
     ('O Sim de José Arnaldo', '3sbg6jiN7_c', 'o-sim-de-jose-arnaldo', 'o-doce-oficio-da-noiva-o-casamento-de-zelinda-e-jose-arnaldo'),
+    ('A Travessa do Empório', 'k5zmiY_iDZg', 'a-travessa-do-emporio', None),
 ]
 shutil.copytree(ROOT + '/assets/musicas', S + '/musicas')
 POR_SLUG = {i['slug']: i for i in itens}
