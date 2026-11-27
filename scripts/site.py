@@ -284,7 +284,7 @@ else:
 open(S + '/livro.html', 'w', encoding='utf-8').write(pagina('O livro', livro, 'l'))
 
 musicas = (f'<h1 class="script" style="text-align:center">Músicas</h1><p class="lead" style="text-align:center">As músicas de Zelinda Gomes. Aperte o play na capa para ouvir.</p>'
-           f'<p style="text-align:center"><a class="botao" href="fotos.html">▶ Ouvir todas com as fotos do livro</a></p>'
+           f'<p style="text-align:center;margin:18px 0 34px"><a class="botao" style="display:inline-block" href="fotos.html">▶ Ouvir todas com as fotos do livro</a></p>'
            f'<div class="musicas">{"".join(musica_card(m) for m in MUSICAS)}</div>')
 open(S + '/musicas.html', 'w', encoding='utf-8').write(pagina('Músicas', musicas, 'u'))
 
