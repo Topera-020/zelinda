@@ -7,6 +7,8 @@ document.querySelectorAll('.yt').forEach(function(b){b.addEventListener('click',
 var f=document.createElement('iframe');f.src='https://www.youtube-nocookie.com/embed/'+b.dataset.id+'?autoplay=1&rel=0';
 f.title=b.getAttribute('aria-label');f.allow='autoplay; encrypted-media; picture-in-picture; fullscreen';f.allowFullscreen=true;
 var d=document.createElement('div');d.className='yt';d.appendChild(f);b.replaceWith(d)})});
+document.querySelectorAll('.ver-letra').forEach(function(b){b.addEventListener('click',function(){var d=document.getElementById(b.dataset.dlg);if(d&&d.showModal){d.showModal();d.scrollTop=0}})});
+document.querySelectorAll('dialog.letra').forEach(function(d){d.querySelector('.fechar').addEventListener('click',function(){d.close()});d.addEventListener('click',function(e){if(e.target===d)d.close()})});
 var sh=document.getElementById('show');
 if(sh&&window.SHOW){var F=SHOW.fotos,M=SHOW.musicas,som=document.getElementById('som'),sl=sh.querySelectorAll('.slide'),fi=0,mi=0,cam=0,timer=null,toca=false,trava=null;
 var mostra=function(k){fi=(k+F.length)%F.length;var a=sl[cam],b=sl[1-cam],f=F[fi],im=b.querySelector('img');

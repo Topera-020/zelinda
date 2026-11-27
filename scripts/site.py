@@ -170,11 +170,35 @@ def player(t, vid, capa):
             f'<span class="play"><svg viewBox="0 0 24 24" width="30" height="30" aria-hidden="true"><path d="M8 5v14l11-7z" fill="#fff"/></svg></span></button>')
 
 
+def letra(t, capa):
+    """assets/letras/<capa>.txt -> janela com a letra. Linha em branco separa estrofes,
+    [Refrão] vira rotulo e (texto entre parenteses) vira indicacao em italico."""
+    arq = f'{ROOT}/assets/letras/{capa}.txt'
+    if not os.path.exists(arq):
+        return ''
+    estrofes = []
+    for bloco in re.split(r'\n\s*\n', open(arq, encoding='utf-8').read().strip()):
+        linhas = []
+        for l in bloco.strip().splitlines():
+            l = l.strip()
+            if re.fullmatch(r'\[(.+)\]', l):
+                linhas.append(f'<span class="rot">{E(l[1:-1])}</span>')
+            elif re.fullmatch(r'\(.+\)', l):
+                linhas.append(f'<em class="dir">{E(l)}</em>')
+            else:
+                linhas.append(E(l))
+        estrofes.append('<p>' + '<br>'.join(linhas).replace('</span><br>', '</span>') + '</p>')
+    return (f'<button class="ver-letra" type="button" data-dlg="letra-{capa}">♪ Ver a letra</button>'
+            f'<dialog class="letra" id="letra-{capa}" aria-label="Letra de {E(t)}"><div class="letra-topo"><img src="musicas/{capa}.jpg" alt="">'
+            f'<div><small>Letra</small><h2>{E(t)}</h2></div><button class="fechar" type="button" aria-label="Fechar">×</button></div>'
+            f'<div class="estrofes">{"".join(estrofes)}</div></dialog>')
+
+
 def musica_card(m, com_historia=True):
     t, vid, capa, hist = m
     h = POR_SLUG.get(hist) if com_historia else None
     liga = f'<a href="r-{hist}.html">Da história: {E(h["titulo"])}</a> · ' if h else ''
-    return (f'<div class="musica">{player(t, vid, capa)}<h2>{E(t)}</h2>'
+    return (f'<div class="musica">{player(t, vid, capa)}<h2>{E(t)}</h2>{letra(t, capa)}'
             f'<p class="leg">{liga}<a href="https://youtu.be/{vid}" target="_blank" rel="noopener">ouvir no YouTube</a></p></div>')
 
 
@@ -349,6 +373,12 @@ form.busca{position:relative}.musicas{display:grid;grid-template-columns:repeat(
 .yt{position:relative;display:block;width:100%;aspect-ratio:1;padding:0;border:0;border-radius:10px;overflow:hidden;cursor:pointer;background:#2b211c}.yt img{display:block;width:100%;height:100%;object-fit:cover;transition:transform .4s}.yt:hover img{transform:scale(1.03)}
 .yt .play{position:absolute;left:50%;top:50%;width:66px;height:66px;margin:-33px 0 0 -33px;border-radius:50%;background:var(--verm);box-shadow:0 3px 0 var(--vermesc),0 0 0 4px rgba(255,255,255,.85);display:flex;align-items:center;justify-content:center;padding-left:4px;transition:transform .2s}.yt:hover .play,.yt:focus-visible .play{transform:scale(1.08)}
 .yt iframe{display:block;width:100%;height:100%;border:0}
+.musicas{align-items:start}.ver-letra{align-self:flex-start;background:none;border:0;padding:0;font:600 15px Lora,serif;color:var(--verm);cursor:pointer;text-decoration:underline;text-underline-offset:3px}
+dialog.letra{width:calc(100% - 28px);max-width:560px;max-height:86vh;padding:0;overflow:auto;border:2px solid var(--verm);border-radius:16px;background:var(--papel);color:var(--tinta);box-shadow:0 0 0 5px var(--ouro),0 20px 50px rgba(0,0,0,.35)}dialog.letra::backdrop{background:rgba(43,33,28,.55)}
+.letra-topo{position:sticky;top:0;z-index:1;display:flex;gap:12px;align-items:center;padding:12px 14px;background:var(--papel);border-bottom:2px dotted var(--ouro)}.letra-topo img{width:52px;height:52px;border-radius:8px;object-fit:cover}
+.letra-topo small{display:block;font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--suave)}.letra-topo h2{font:400 28px/1.1 Playball,cursive;color:var(--verm);margin:0}
+.fechar{margin-left:auto;flex:none;width:40px;height:40px;border-radius:50%;border:2px solid var(--verm);background:var(--papel);color:var(--verm);font-size:24px;line-height:1;cursor:pointer}.fechar:hover{background:var(--verm);color:#fff}
+.estrofes{padding:18px 22px 24px;font:17px/1.6 Lora,serif;text-align:center}.estrofes p{margin:0 0 1.2em}.rot{display:block;font:600 12px Lora,serif;text-transform:uppercase;letter-spacing:.12em;color:var(--ouro)}.dir{color:var(--suave)}
 .musica-hist{margin:30px 0 6px;padding-top:18px;border-top:3px dotted var(--ouro)}.musica-hist>h2{font-size:30px;margin:0 0 12px;color:var(--verm)}.musica-hist .musica{max-width:360px}
 .show{max-width:980px;margin:0 auto;background:var(--papel);border:2px solid var(--verm);border-radius:18px;outline:4px solid var(--creme);box-shadow:0 0 0 6px var(--ouro);overflow:hidden}
 .tela{position:relative;height:min(68vh,640px);background:#fffdf8}
@@ -430,6 +460,8 @@ document.querySelectorAll('.yt').forEach(function(b){b.addEventListener('click',
 var f=document.createElement('iframe');f.src='https://www.youtube-nocookie.com/embed/'+b.dataset.id+'?autoplay=1&rel=0';
 f.title=b.getAttribute('aria-label');f.allow='autoplay; encrypted-media; picture-in-picture; fullscreen';f.allowFullscreen=true;
 var d=document.createElement('div');d.className='yt';d.appendChild(f);b.replaceWith(d)})});
+document.querySelectorAll('.ver-letra').forEach(function(b){b.addEventListener('click',function(){var d=document.getElementById(b.dataset.dlg);if(d&&d.showModal){d.showModal();d.scrollTop=0}})});
+document.querySelectorAll('dialog.letra').forEach(function(d){d.querySelector('.fechar').addEventListener('click',function(){d.close()});d.addEventListener('click',function(e){if(e.target===d)d.close()})});
 var sh=document.getElementById('show');
 if(sh&&window.SHOW){var F=SHOW.fotos,M=SHOW.musicas,som=document.getElementById('som'),sl=sh.querySelectorAll('.slide'),fi=0,mi=0,cam=0,timer=null,toca=false,trava=null;
 var mostra=function(k){fi=(k+F.length)%F.length;var a=sl[cam],b=sl[1-cam],f=F[fi],im=b.querySelector('img');
