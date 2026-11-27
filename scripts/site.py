@@ -108,7 +108,7 @@ def pagina(titulo, corpo, ativo=''):
     return f'''<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>{E(titulo)} — Zelinda</title>{FONTES}<link rel="icon" href="favicon.svg" type="image/svg+xml"><link rel="icon" href="favicon.ico" sizes="any"><link rel="apple-touch-icon" href="apple-touch-icon.png"><link rel="stylesheet" href="estilo.css"></head><body>
 <div class="xadrez"></div>
-<div class="topo"><header><a class="logo" href="index.html">Zelinda</a><button class="menu-btn" type="button" aria-label="Abrir menu" aria-expanded="false" aria-controls="menu"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#c8283a" stroke-width="2.4" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button><nav id="menu">{nav("receitas.html?t=receita","Receitas","r")}{nav("receitas.html?t=memoria","Memórias","m")}{nav("familiares.html","Por familiar","f")}{nav("musicas.html","Músicas","u")}{nav("livro.html","O livro","l")}</nav></header></div>
+<div class="topo"><header><a class="logo" href="index.html">Zelinda</a><button class="menu-btn" type="button" aria-label="Abrir menu" aria-expanded="false" aria-controls="menu"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#c8283a" stroke-width="2.4" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button><nav id="menu">{nav("receitas.html?t=receita","Receitas","r")}{nav("receitas.html?t=memoria","Memórias","m")}{nav("familiares.html","Por familiar","f")}{nav("musicas.html","Músicas","u")}{nav("fotos.html","Fotos","o")}{nav("livro.html","O livro","l")}</nav></header></div>
 <main>{corpo}</main>
 <footer><span class="coracao">♥</span> Memórias e Receitas de Dona Zelinda</footer><script src="app.js"></script></body></html>'''
 
@@ -284,8 +284,31 @@ else:
 open(S + '/livro.html', 'w', encoding='utf-8').write(pagina('O livro', livro, 'l'))
 
 musicas = (f'<h1 class="script" style="text-align:center">Músicas</h1><p class="lead" style="text-align:center">As músicas de Zelinda Gomes. Aperte o play na capa para ouvir.</p>'
+           f'<p style="text-align:center"><a class="botao" href="fotos.html">▶ Ouvir todas com as fotos do livro</a></p>'
            f'<div class="musicas">{"".join(musica_card(m) for m in MUSICAS)}</div>')
 open(S + '/musicas.html', 'w', encoding='utf-8').write(pagina('Músicas', musicas, 'u'))
+
+# pagina Fotos: desenhos do livro passando em loop, com as musicas tocando uma atras da outra
+fotos = [dict(src='capa.jpg', t='Memórias e Receitas de Dona Zelinda', s='')]
+for it in por_ordem:
+    for nome, ext in re.findall(r'!\[\]\(/img/(img\d+)\.(\w+)\)', it['corpo']):
+        if os.path.exists(f'{S}/img/{nome}.{ext}'):
+            fotos.append(dict(src=f'img/{nome}.{ext}', t=it['titulo'], s=it['slug']))
+show = dict(fotos=fotos, musicas=[dict(src=f'musicas/{c}.mp3', t=t, capa=f'musicas/{c}.jpg') for t, _, c, _ in MUSICAS])
+IC = lambda d, extra='', t=22: f'<svg viewBox="0 0 24 24" width="{t}" height="{t}" aria-hidden="true" {extra}><path d="{d}"/></svg>'
+fotos_html = f'''<h1 class="script" style="text-align:center">Fotos e músicas</h1>
+<div class="show" id="show"><div class="tela">
+<figure class="slide on"><img src="capa.jpg" alt=""><figcaption>{E(fotos[0]["t"])}</figcaption></figure><figure class="slide"><img alt=""><figcaption></figcaption></figure>
+<button class="comecar" type="button"><span class="play">{IC("M8 5v14l11-7z", 'fill="#fff"', 40)}</span>Começar</button></div>
+<div class="barra"><img class="disco" src="{show["musicas"][0]["capa"]}" alt=""><div class="agora"><small>Tocando</small><b id="show-musica">{E(MUSICAS[0][0])}</b></div>
+<button type="button" data-acao="ant" aria-label="Música anterior">{IC("M6 5h2v14H6zM9.5 12 19 5v14z")}</button>
+<button type="button" data-acao="play" aria-label="Tocar">{IC("M8 5v14l11-7z", 'class="i-play"')}{IC("M7 5h4v14H7zM13 5h4v14h-4z", 'class="i-pausa"')}</button>
+<button type="button" data-acao="prox" aria-label="Próxima música">{IC("M16 5h2v14h-2zM14.5 12 5 5v14z")}</button>
+<button type="button" data-acao="tela" aria-label="Tela cheia">{IC("M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5", 'fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"')}</button></div>
+<audio id="som" preload="none"></audio></div>
+<p class="leg" style="text-align:center;margin-top:16px">{len(fotos)} desenhos do livro e {len(MUSICAS)} músicas, em loop. Dica: na TV ou no computador, use a tela cheia.</p>
+<script>window.SHOW={json.dumps(show, ensure_ascii=False).replace("</", "<\\/")}</script>'''
+open(S + '/fotos.html', 'w', encoding='utf-8').write(pagina('Fotos e músicas', fotos_html, 'o'))
 
 
 # icone do site: coracao vermelho
@@ -327,6 +350,18 @@ form.busca{position:relative}.musicas{display:grid;grid-template-columns:repeat(
 .yt .play{position:absolute;left:50%;top:50%;width:66px;height:66px;margin:-33px 0 0 -33px;border-radius:50%;background:var(--verm);box-shadow:0 3px 0 var(--vermesc),0 0 0 4px rgba(255,255,255,.85);display:flex;align-items:center;justify-content:center;padding-left:4px;transition:transform .2s}.yt:hover .play,.yt:focus-visible .play{transform:scale(1.08)}
 .yt iframe{display:block;width:100%;height:100%;border:0}
 .musica-hist{margin:30px 0 6px;padding-top:18px;border-top:3px dotted var(--ouro)}.musica-hist>h2{font-size:30px;margin:0 0 12px;color:var(--verm)}.musica-hist .musica{max-width:360px}
+.show{max-width:980px;margin:0 auto;background:var(--papel);border:2px solid var(--verm);border-radius:18px;outline:4px solid var(--creme);box-shadow:0 0 0 6px var(--ouro);overflow:hidden}
+.tela{position:relative;height:min(68vh,640px);background:#fffdf8}
+.slide{position:absolute;inset:0;margin:0;display:flex;flex-direction:column;align-items:center;padding:18px 18px 12px;opacity:0;transition:opacity 1.2s ease}.slide.on{opacity:1}
+.slide img{flex:1;min-height:0;width:100%;object-fit:contain;mix-blend-mode:multiply}.slide figcaption{margin-top:10px;font:italic 17px/1.3 Lora,serif;color:var(--suave);text-align:center}.slide figcaption a{color:var(--verm)}
+.comecar{position:absolute;inset:0;z-index:2;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;background:rgba(253,248,238,.6);border:0;font:400 40px Playball,cursive;color:var(--verm);cursor:pointer}
+.comecar .play{width:96px;height:96px;border-radius:50%;background:var(--verm);display:flex;align-items:center;justify-content:center;padding-left:6px;box-shadow:0 4px 0 var(--vermesc),0 0 0 6px rgba(255,255,255,.9);transition:transform .2s}.comecar:hover .play{transform:scale(1.07)}.show.iniciado .comecar{display:none}
+.barra{display:flex;align-items:center;gap:10px;padding:10px 14px;border-top:2px dotted var(--ouro)}.disco{width:50px;height:50px;border-radius:8px;object-fit:cover;flex:none}
+.agora{flex:1;min-width:0}.agora small{display:block;font-size:12px;color:var(--suave);text-transform:uppercase;letter-spacing:.08em}.agora b{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--verm);font-weight:600}
+.barra button{flex:none;width:44px;height:44px;border-radius:50%;border:2px solid var(--verm);background:var(--papel);color:var(--verm);fill:currentColor;display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0}.barra button:hover{background:var(--creme)}
+.barra button[data-acao=play]{width:50px;height:50px;background:var(--verm);color:#fff}.barra button[data-acao=play]:hover{background:var(--vermesc)}
+.i-pausa{display:none}.show.tocando .i-pausa{display:block}.show.tocando .i-play{display:none}
+.show:fullscreen{max-width:none;border:0;border-radius:0;outline:0;box-shadow:none;display:flex;flex-direction:column}.show:fullscreen .tela{height:auto;flex:1}.show:fullscreen .slide figcaption{font-size:22px}
 .campo{flex:1;min-width:0;display:flex}.campo input{width:100%}
 .sugest{position:absolute;z-index:20;top:calc(100% + 6px);left:0;right:0;margin:0;padding:6px;list-style:none;background:var(--papel);border:2px solid var(--verm);border-radius:14px;box-shadow:0 12px 26px rgba(43,33,28,.2);max-height:min(60vh,430px);overflow:auto;text-align:left}
 .sugest a{display:block;padding:7px 12px;border-radius:10px;text-decoration:none;color:var(--tinta);font-size:16px;line-height:1.3}
@@ -378,6 +413,7 @@ main{padding:20px 14px 40px}
 .item{padding:6px 16px 26px}.item h1{font-size:34px}
 .passos{grid-template-columns:1fr}.nav-p{text-align:left}
 .lista{columns:1}
+.tela{height:60vh}.slide{padding:12px 10px 8px}.slide figcaption{font-size:15px}.barra{gap:6px;padding:8px 10px}.disco{width:40px;height:40px}.barra button{width:38px;height:38px}.barra button[data-acao=play]{width:44px;height:44px}.comecar{font-size:32px}
 .musicas{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.musica{padding:8px}.musica h2{font-size:21px}.yt .play{width:48px;height:48px;margin:-24px 0 0 -24px}.yt .play svg{width:22px;height:22px}
 .hero-img{transform:none}
 }
@@ -394,6 +430,25 @@ document.querySelectorAll('.yt').forEach(function(b){b.addEventListener('click',
 var f=document.createElement('iframe');f.src='https://www.youtube-nocookie.com/embed/'+b.dataset.id+'?autoplay=1&rel=0';
 f.title=b.getAttribute('aria-label');f.allow='autoplay; encrypted-media; picture-in-picture; fullscreen';f.allowFullscreen=true;
 var d=document.createElement('div');d.className='yt';d.appendChild(f);b.replaceWith(d)})});
+var sh=document.getElementById('show');
+if(sh&&window.SHOW){var F=SHOW.fotos,M=SHOW.musicas,som=document.getElementById('som'),sl=sh.querySelectorAll('.slide'),fi=0,mi=0,cam=0,timer=null,toca=false,trava=null;
+var mostra=function(k){fi=(k+F.length)%F.length;var a=sl[cam],b=sl[1-cam],f=F[fi],im=b.querySelector('img');
+im.onload=function(){a.classList.remove('on');b.classList.add('on');cam=1-cam};im.src=f.src;
+b.querySelector('figcaption').innerHTML=f.s?'<a href="r-'+f.s+'.html">'+esc(f.t)+'</a>':esc(f.t);
+(new Image()).src=F[(fi+1)%F.length].src};
+var relogio=function(){clearInterval(timer);if(toca)timer=setInterval(function(){mostra(fi+1)},7000)};
+var musica=function(k){mi=(k+M.length)%M.length;som.src=M[mi].src;document.getElementById('show-musica').textContent=M[mi].t;sh.querySelector('.disco').src=M[mi].capa;if(toca)som.play().catch(function(){})};
+var tocar=function(){toca=true;sh.classList.add('tocando','iniciado');if(!som.src)musica(mi);som.play().catch(function(){});relogio();
+sh.querySelector('[data-acao=play]').setAttribute('aria-label','Pausar');if(navigator.wakeLock)navigator.wakeLock.request('screen').then(function(l){trava=l}).catch(function(){})};
+var pausar=function(){toca=false;sh.classList.remove('tocando');som.pause();relogio();sh.querySelector('[data-acao=play]').setAttribute('aria-label','Tocar');if(trava){trava.release();trava=null}};
+som.addEventListener('ended',function(){musica(mi+1)});
+sh.querySelector('.comecar').addEventListener('click',tocar);
+sh.querySelectorAll('.barra button').forEach(function(b){b.addEventListener('click',function(){var a=b.dataset.acao;
+if(a==='play')toca?pausar():tocar();else if(a==='ant')musica(mi-1);else if(a==='prox')musica(mi+1);
+else if(a==='tela'){if(document.fullscreenElement)document.exitFullscreen();else if(sh.requestFullscreen)sh.requestFullscreen()}})});
+if(!sh.requestFullscreen)sh.querySelector('[data-acao=tela]').hidden=true;
+document.addEventListener('keydown',function(e){if(e.target.tagName==='INPUT')return;if(e.key==='ArrowRight'){mostra(fi+1);relogio()}else if(e.key==='ArrowLeft'){mostra(fi-1);relogio()}});
+document.addEventListener('visibilitychange',function(){if(toca&&!trava&&document.visibilityState==='visible'&&navigator.wakeLock)navigator.wakeLock.request('screen').then(function(l){trava=l}).catch(function(){})})}
 var bi=document.querySelector('form.busca[action] input');
 if(bi){var bf=bi.form,box=document.createElement('ul'),sel=-1,opts=[],pedido=false;
 box.className='sugest';box.id='sugest';box.setAttribute('role','listbox');box.hidden=true;bi.parentNode.appendChild(box);
