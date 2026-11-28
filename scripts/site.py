@@ -105,10 +105,10 @@ def pagina(titulo, corpo, ativo=''):
     def nav(h, t, k):
         c = 'on' if ativo == k else ''
         return f'<a href="{h}" class="{c}">{t}</a>'
-    return f'''<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+    return f'''<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light only"><meta name="theme-color" content="#f9ebcd">
 <title>{E(titulo)} — Zelinda</title>{FONTES}<link rel="icon" href="favicon.svg" type="image/svg+xml"><link rel="icon" href="favicon.ico" sizes="any"><link rel="apple-touch-icon" href="apple-touch-icon.png"><link rel="stylesheet" href="estilo.css"></head><body>
 <div class="xadrez"></div>
-<div class="topo"><header><a class="logo" href="index.html">Zelinda</a><button class="menu-btn" type="button" aria-label="Abrir menu" aria-expanded="false" aria-controls="menu"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#c8283a" stroke-width="2.4" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button><nav id="menu">{nav("receitas.html?t=receita","Receitas","r")}{nav("receitas.html?t=memoria","Memórias","m")}{nav("familiares.html","Por familiar","f")}{nav("musicas.html","Músicas","u")}{nav("fotos.html","Fotos","o")}{nav("livro.html","O livro","l")}</nav></header></div>
+<div class="topo"><header><a class="logo" href="index.html">Zelinda</a><button class="menu-btn" type="button" aria-label="Abrir menu" aria-expanded="false" aria-controls="menu"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#c8283a" stroke-width="2.4" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button><nav id="menu">{nav("receitas.html?t=receita","Receitas","r")}{nav("receitas.html?t=memoria","Memórias","m")}{nav("familiares.html","Por familiar","f")}{nav("musicas.html","Músicas","u")}{nav("fotos.html","Fotos","o")}{nav("jogo.html","Jogo","j")}{nav("livro.html","O livro","l")}</nav></header></div>
 <main>{corpo}</main>
 <footer><span class="coracao">♥</span> Memórias e Receitas de Dona Zelinda</footer><script src="app.js"></script></body></html>'''
 
@@ -335,6 +335,32 @@ fotos_html = f'''<h1 class="script" style="text-align:center">Fotos e músicas</
 <script>window.SHOW={json.dumps(show, ensure_ascii=False).replace("</", "<\\/")}</script>'''
 open(S + '/fotos.html', 'w', encoding='utf-8').write(pagina('Fotos e músicas', fotos_html, 'o'))
 
+# pagina Jogo: jogo da memoria com os desenhos do livro (miniaturas leves em docs/mini)
+from PIL import Image
+os.makedirs(S + '/mini', exist_ok=True)
+cartas, vistos = [], set()
+for f in fotos[1:]:
+    if f['src'] in vistos:
+        continue
+    vistos.add(f['src'])
+    nome = os.path.splitext(os.path.basename(f['src']))[0]
+    im = Image.open(f'{S}/{f["src"]}')
+    if im.mode != 'RGB':
+        im = im.convert('RGBA'); fundo_b = Image.new('RGBA', im.size, (255, 255, 255, 255)); fundo_b.alpha_composite(im); im = fundo_b.convert('RGB')
+    im.thumbnail((360, 360), Image.LANCZOS)
+    im.save(f'{S}/mini/{nome}.jpg', quality=84, optimize=True)
+    cartas.append(dict(src=f'mini/{nome}.jpg', t=f['t'], s=f['s']))
+jogo_html = f'''<h1 class="script" style="text-align:center">Jogo da memória</h1>
+<p class="lead" style="text-align:center">Vire duas cartas e encontre os pares de desenhos do livro. Cada par leva a uma história.</p>
+<div class="jogo" id="jogo"><div class="jogo-topo">
+<div class="niveis" role="group" aria-label="Tamanho do jogo"><button type="button" data-n="6">Fácil</button><button type="button" data-n="8" class="on">Médio</button><button type="button" data-n="12">Difícil</button></div>
+<div class="placar" aria-live="polite"><span><b id="j-pares">0</b> de <b id="j-total">8</b> pares</span><span><b id="j-jogadas">0</b> <span id="j-jl">jogadas</span></span></div></div>
+<div class="tabuleiro n8" id="tabuleiro"></div>
+<p class="achou" id="achou" aria-live="polite"></p>
+<div class="fim" id="fim" hidden></div></div>
+<script>window.JOGO={json.dumps(cartas, ensure_ascii=False).replace("</", "<\\/")}</script>'''
+open(S + '/jogo.html', 'w', encoding='utf-8').write(pagina('Jogo da memória', jogo_html, 'j'))
+
 
 # icone do site: coracao vermelho
 SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><path d="M16 28.5C4 20.5 1.5 14 1.5 9.8 1.5 5.4 4.8 2.5 8.6 2.5c3 0 5.6 1.7 7.4 4.6 1.8-2.9 4.4-4.6 7.4-4.6 3.8 0 7.1 2.9 7.1 7.3 0 4.2-2.5 10.7-14.5 18.7z" fill="#d6283b"/><ellipse cx="9.2" cy="9" rx="3.2" ry="2" transform="rotate(-35 9.2 9)" fill="#fff" opacity=".55"/></svg>'
@@ -355,8 +381,8 @@ coracao(256).save(S + '/favicon.ico', sizes=[(16, 16), (32, 32), (48, 48), (64, 
 fundo = Image.new('RGBA', (180, 180), (249, 235, 205, 255)); fundo.alpha_composite(coracao(140), (20, 24)); fundo.convert('RGB').save(S + '/apple-touch-icon.png')
 
 CSS = '''
-:root{--creme:#f9ebcd;--papel:#fdf4df;--verm:#c8283a;--vermesc:#9e1d2c;--ouro:#c9a24a;--tinta:#2b211c;--suave:#6b5a45}
-*{box-sizing:border-box}body{margin:0;overflow-x:hidden;background:var(--creme);color:var(--tinta);font:18px/1.45 Lora,Georgia,serif}p{margin:0 0 .65em}li{margin:0}ul{margin:.4em 0 .8em;padding-left:1.3em}
+:root{--creme:#f9ebcd;--papel:#fdf4df;--verm:#c8283a;--vermesc:#9e1d2c;--ouro:#c9a24a;--tinta:#2b211c;--suave:#6b5a45;color-scheme:light only}
+html{background:var(--creme)}*{box-sizing:border-box}body{margin:0;overflow-x:hidden;background:var(--creme);color:var(--tinta);font:18px/1.45 Lora,Georgia,serif}p{margin:0 0 .65em}li{margin:0}ul{margin:.4em 0 .8em;padding-left:1.3em}
 .xadrez{height:22px;background:repeating-conic-gradient(var(--verm) 0 25%,#fff 0 50%) 0 0/22px 22px;border-bottom:3px solid var(--ouro)}
 .menu-btn{display:none;background:var(--papel);border:2px solid var(--verm);border-radius:10px;padding:6px 8px;cursor:pointer;line-height:0}.topo{background:var(--papel);border-bottom:2px solid var(--ouro)}header{display:flex;flex-wrap:wrap;gap:12px 28px;align-items:center;justify-content:space-between;max-width:1080px;margin:0 auto;padding:18px 20px}
 .logo{font:44px Playball,cursive;color:var(--verm);text-decoration:none}nav a{margin-left:20px;color:var(--tinta);text-decoration:none;border-bottom:2px solid transparent}nav a:hover,nav a.on{border-color:var(--verm);color:var(--verm)}
@@ -393,6 +419,21 @@ dialog.letra{width:calc(100% - 28px);max-width:560px;max-height:86vh;padding:0;o
 .barra button[data-acao=play]{width:50px;height:50px;background:var(--verm);color:#fff}.barra button[data-acao=play]:hover{background:var(--vermesc)}
 .i-pausa{display:none}.show.tocando .i-pausa{display:block}.show.tocando .i-play{display:none}
 .show:fullscreen{max-width:none;border:0;border-radius:0;outline:0;box-shadow:none;display:flex;flex-direction:column}.show:fullscreen .tela{height:auto;flex:1}.show:fullscreen .slide figcaption{font-size:22px}
+.jogo{max-width:900px;margin:0 auto}.jogo-topo{display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center;justify-content:space-between;margin:20px auto 14px}
+.niveis{display:flex;gap:6px}.niveis button{background:var(--papel);border:2px solid var(--verm);color:var(--verm);border-radius:999px;padding:5px 16px;font:inherit;cursor:pointer}.niveis button.on{background:var(--verm);color:#fff}
+.placar{display:flex;gap:18px;color:var(--suave)}.placar b{color:var(--verm);font-size:22px}
+.tabuleiro{display:grid;grid-template-columns:repeat(var(--col),minmax(0,1fr));gap:12px;margin:0 auto}.tabuleiro.n6,.tabuleiro.n8{--col:4;max-width:640px}.tabuleiro.n12{--col:6}
+.jogo-topo{max-width:640px}.jogo.largo .jogo-topo{max-width:none}
+.carta{position:relative;aspect-ratio:1;padding:0;border:0;background:none;cursor:pointer;perspective:900px;-webkit-tap-highlight-color:transparent}.carta:disabled{cursor:default}
+.gira{position:absolute;inset:0;transition:transform .5s;transform-style:preserve-3d}.carta.virada .gira{transform:rotateY(180deg)}
+.face{position:absolute;inset:0;-webkit-backface-visibility:hidden;backface-visibility:hidden;border-radius:12px;border:3px solid var(--ouro);display:flex;align-items:center;justify-content:center;overflow:hidden}
+.verso{background:var(--verm) repeating-conic-gradient(rgba(255,255,255,.14) 0 25%,transparent 0 50%) 0 0/26px 26px;box-shadow:0 3px 0 var(--vermesc)}.verso svg{width:36%;height:36%}.carta:not(.virada):hover .verso{filter:brightness(1.1)}
+.frente{transform:rotateY(180deg);background:#fffdf8;border-color:var(--verm)}.frente img{width:100%;height:100%;object-fit:contain;padding:6px;mix-blend-mode:multiply}
+.carta.par .frente{border-color:var(--ouro);box-shadow:inset 0 0 0 3px var(--ouro)}.carta.par .gira{animation:pulo .55s}@keyframes pulo{50%{transform:rotateY(180deg) scale(1.08)}}
+.carta:focus-visible{outline:3px solid var(--vermesc);outline-offset:3px;border-radius:12px}
+.achou{min-height:1.6em;text-align:center;margin:16px 0 0;font-size:18px}.achou .coracao{margin-right:6px}
+.fim{max-width:640px;margin:22px auto 0;padding:10px 30px 24px;text-align:center;background:var(--papel);border:2px solid var(--verm);border-radius:16px;outline:4px solid var(--creme);box-shadow:0 0 0 6px var(--ouro)}.fim h2{font-size:46px;margin:.2em 0}
+.fim-hist{list-style:none;padding:0;margin:6px 0 18px}.fim-hist li{padding:4px 0;border-bottom:1px dotted var(--ouro)}.fim-hist li:last-child{border:0}
 .campo{flex:1;min-width:0;display:flex}.campo input{width:100%}
 .sugest{position:absolute;z-index:20;top:calc(100% + 6px);left:0;right:0;margin:0;padding:6px;list-style:none;background:var(--papel);border:2px solid var(--verm);border-radius:14px;box-shadow:0 12px 26px rgba(43,33,28,.2);max-height:min(60vh,430px);overflow:auto;text-align:left}
 .sugest a{display:block;padding:7px 12px;border-radius:10px;text-decoration:none;color:var(--tinta);font-size:16px;line-height:1.3}
@@ -447,6 +488,7 @@ main{padding:20px 14px 40px}
 .tela{height:60vh}.slide{padding:12px 10px 8px}.slide figcaption{font-size:15px}.barra{gap:6px;padding:8px 10px}.disco{width:40px;height:40px}.barra button{width:38px;height:38px}.barra button[data-acao=play]{width:44px;height:44px}.comecar{font-size:32px}
 .musicas{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.musica{padding:8px}.musica h2{font-size:21px}.yt .play{width:48px;height:48px;margin:-24px 0 0 -24px}.yt .play svg{width:22px;height:22px}
 .hero-img{transform:none}
+.tabuleiro{gap:8px}.tabuleiro.n6{--col:3}.tabuleiro.n12{--col:4}.face{border-width:2px;border-radius:9px}.frente img{padding:3px}.jogo-topo{justify-content:center}.niveis button{padding:5px 13px}.fim{padding:8px 16px 20px}
 }
 @media(prefers-reduced-motion:reduce){.cor{transition:none}}
 '''
@@ -482,6 +524,30 @@ else if(a==='tela'){if(document.fullscreenElement)document.exitFullscreen();else
 if(!sh.requestFullscreen)sh.querySelector('[data-acao=tela]').hidden=true;
 document.addEventListener('keydown',function(e){if(e.target.tagName==='INPUT')return;if(e.key==='ArrowRight'){mostra(fi+1);relogio()}else if(e.key==='ArrowLeft'){mostra(fi-1);relogio()}});
 document.addEventListener('visibilitychange',function(){if(toca&&!trava&&document.visibilityState==='visible'&&navigator.wakeLock)navigator.wakeLock.request('screen').then(function(l){trava=l}).catch(function(){})})}
+var jg=document.getElementById('jogo');
+if(jg&&window.JOGO){var J=JOGO,tab=document.getElementById('tabuleiro'),fim=document.getElementById('fim'),achou=document.getElementById('achou'),n=8,abertas=[],espera=false,pares=0,jogadas=0,achadas=[];
+var VERSO='<svg viewBox="0 0 32 30" aria-hidden="true"><path d="M16 28.5C4 20.5 1.5 14 1.5 9.8 1.5 5.4 4.8 2.5 8.6 2.5c3 0 5.6 1.7 7.4 4.6 1.8-2.9 4.4-4.6 7.4-4.6 3.8 0 7.1 2.9 7.1 7.3 0 4.2-2.5 10.7-14.5 18.7z" fill="#fff"/></svg>';
+var embaralha=function(a){for(var i=a.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1)),t=a[i];a[i]=a[j];a[j]=t}return a};
+var liga=function(c){return c.s?'<a href="r-'+c.s+'.html">'+esc(c.t)+'</a>':esc(c.t)};
+var placar=function(){document.getElementById('j-pares').textContent=pares;document.getElementById('j-total').textContent=n;document.getElementById('j-jogadas').textContent=jogadas;document.getElementById('j-jl').textContent=jogadas===1?'jogada':'jogadas'};
+var guarda=function(k,v){try{if(v===undefined)return+localStorage.getItem(k)||0;localStorage.setItem(k,v)}catch(e){return 0}};
+var novo=function(){var ks=embaralha(J.map(function(c,k){return k})).slice(0,n),deck=embaralha(ks.concat(ks));
+abertas=[];espera=false;pares=0;jogadas=0;achadas=[];tab.className='tabuleiro n'+n;jg.classList.toggle('largo',n>8);fim.hidden=true;achou.innerHTML='';
+tab.innerHTML=deck.map(function(k){return'<button type="button" class="carta" data-k="'+k+'" aria-label="Carta virada"><span class="gira"><span class="face verso">'+VERSO+'</span><span class="face frente"><img src="'+J[k].src+'" alt=""></span></span></button>'}).join('');placar()};
+var acabou=function(){var k='zelinda-memoria-'+n,rec=guarda(k),bateu=!rec||jogadas<rec;if(bateu)guarda(k,jogadas);
+var visto={},hist=achadas.filter(function(c){if(!c.s||visto[c.s])return false;return visto[c.s]=true});
+fim.innerHTML='<h2 class="script">Parabéns!</h2><p>Você encontrou os '+n+' pares em <b>'+jogadas+'</b> jogadas.'+(bateu?(rec?' <b>Novo recorde!</b>':''):' Seu recorde neste nível: '+rec+' jogadas.')+'</p>'
++(hist.length?'<p class="leg">As histórias destes desenhos:</p><ul class="fim-hist">'+hist.map(function(c){return'<li>'+liga(c)+'</li>'}).join('')+'</ul>':'')
++'<p><button type="button" class="botao">Jogar de novo</button></p>';
+fim.hidden=false;achou.innerHTML='';fim.querySelector('button').onclick=function(){novo();jg.scrollIntoView({behavior:'smooth',block:'start'})};fim.scrollIntoView({behavior:'smooth',block:'center'})};
+tab.addEventListener('click',function(e){var b=e.target.closest('.carta');if(!b||espera||b.classList.contains('virada'))return;
+var c=J[b.dataset.k];b.classList.add('virada');b.setAttribute('aria-label',c.t);abertas.push(b);if(abertas.length<2)return;
+var a=abertas[0];abertas=[];jogadas++;
+if(a.dataset.k===b.dataset.k){pares++;a.classList.add('par');b.classList.add('par');a.disabled=b.disabled=true;achadas.push(c);
+achou.innerHTML='<span class="coracao">♥</span>Par encontrado: '+liga(c);placar();if(pares===n)setTimeout(acabou,800)}
+else{espera=true;placar();setTimeout(function(){[a,b].forEach(function(x){x.classList.remove('virada');x.setAttribute('aria-label','Carta virada')});espera=false},1100)}});
+jg.querySelectorAll('.niveis button').forEach(function(b){b.addEventListener('click',function(){n=+b.dataset.n;jg.querySelectorAll('.niveis button').forEach(function(x){x.classList.toggle('on',x===b)});novo()})});
+novo()}
 var bi=document.querySelector('form.busca[action] input');
 if(bi){var bf=bi.form,box=document.createElement('ul'),sel=-1,opts=[],pedido=false;
 box.className='sugest';box.id='sugest';box.setAttribute('role','listbox');box.hidden=true;bi.parentNode.appendChild(box);

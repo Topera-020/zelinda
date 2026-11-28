@@ -28,6 +28,30 @@ else if(a==='tela'){if(document.fullscreenElement)document.exitFullscreen();else
 if(!sh.requestFullscreen)sh.querySelector('[data-acao=tela]').hidden=true;
 document.addEventListener('keydown',function(e){if(e.target.tagName==='INPUT')return;if(e.key==='ArrowRight'){mostra(fi+1);relogio()}else if(e.key==='ArrowLeft'){mostra(fi-1);relogio()}});
 document.addEventListener('visibilitychange',function(){if(toca&&!trava&&document.visibilityState==='visible'&&navigator.wakeLock)navigator.wakeLock.request('screen').then(function(l){trava=l}).catch(function(){})})}
+var jg=document.getElementById('jogo');
+if(jg&&window.JOGO){var J=JOGO,tab=document.getElementById('tabuleiro'),fim=document.getElementById('fim'),achou=document.getElementById('achou'),n=8,abertas=[],espera=false,pares=0,jogadas=0,achadas=[];
+var VERSO='<svg viewBox="0 0 32 30" aria-hidden="true"><path d="M16 28.5C4 20.5 1.5 14 1.5 9.8 1.5 5.4 4.8 2.5 8.6 2.5c3 0 5.6 1.7 7.4 4.6 1.8-2.9 4.4-4.6 7.4-4.6 3.8 0 7.1 2.9 7.1 7.3 0 4.2-2.5 10.7-14.5 18.7z" fill="#fff"/></svg>';
+var embaralha=function(a){for(var i=a.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1)),t=a[i];a[i]=a[j];a[j]=t}return a};
+var liga=function(c){return c.s?'<a href="r-'+c.s+'.html">'+esc(c.t)+'</a>':esc(c.t)};
+var placar=function(){document.getElementById('j-pares').textContent=pares;document.getElementById('j-total').textContent=n;document.getElementById('j-jogadas').textContent=jogadas;document.getElementById('j-jl').textContent=jogadas===1?'jogada':'jogadas'};
+var guarda=function(k,v){try{if(v===undefined)return+localStorage.getItem(k)||0;localStorage.setItem(k,v)}catch(e){return 0}};
+var novo=function(){var ks=embaralha(J.map(function(c,k){return k})).slice(0,n),deck=embaralha(ks.concat(ks));
+abertas=[];espera=false;pares=0;jogadas=0;achadas=[];tab.className='tabuleiro n'+n;jg.classList.toggle('largo',n>8);fim.hidden=true;achou.innerHTML='';
+tab.innerHTML=deck.map(function(k){return'<button type="button" class="carta" data-k="'+k+'" aria-label="Carta virada"><span class="gira"><span class="face verso">'+VERSO+'</span><span class="face frente"><img src="'+J[k].src+'" alt=""></span></span></button>'}).join('');placar()};
+var acabou=function(){var k='zelinda-memoria-'+n,rec=guarda(k),bateu=!rec||jogadas<rec;if(bateu)guarda(k,jogadas);
+var visto={},hist=achadas.filter(function(c){if(!c.s||visto[c.s])return false;return visto[c.s]=true});
+fim.innerHTML='<h2 class="script">Parabéns!</h2><p>Você encontrou os '+n+' pares em <b>'+jogadas+'</b> jogadas.'+(bateu?(rec?' <b>Novo recorde!</b>':''):' Seu recorde neste nível: '+rec+' jogadas.')+'</p>'
++(hist.length?'<p class="leg">As histórias destes desenhos:</p><ul class="fim-hist">'+hist.map(function(c){return'<li>'+liga(c)+'</li>'}).join('')+'</ul>':'')
++'<p><button type="button" class="botao">Jogar de novo</button></p>';
+fim.hidden=false;achou.innerHTML='';fim.querySelector('button').onclick=function(){novo();jg.scrollIntoView({behavior:'smooth',block:'start'})};fim.scrollIntoView({behavior:'smooth',block:'center'})};
+tab.addEventListener('click',function(e){var b=e.target.closest('.carta');if(!b||espera||b.classList.contains('virada'))return;
+var c=J[b.dataset.k];b.classList.add('virada');b.setAttribute('aria-label',c.t);abertas.push(b);if(abertas.length<2)return;
+var a=abertas[0];abertas=[];jogadas++;
+if(a.dataset.k===b.dataset.k){pares++;a.classList.add('par');b.classList.add('par');a.disabled=b.disabled=true;achadas.push(c);
+achou.innerHTML='<span class="coracao">♥</span>Par encontrado: '+liga(c);placar();if(pares===n)setTimeout(acabou,800)}
+else{espera=true;placar();setTimeout(function(){[a,b].forEach(function(x){x.classList.remove('virada');x.setAttribute('aria-label','Carta virada')});espera=false},1100)}});
+jg.querySelectorAll('.niveis button').forEach(function(b){b.addEventListener('click',function(){n=+b.dataset.n;jg.querySelectorAll('.niveis button').forEach(function(x){x.classList.toggle('on',x===b)});novo()})});
+novo()}
 var bi=document.querySelector('form.busca[action] input');
 if(bi){var bf=bi.form,box=document.createElement('ul'),sel=-1,opts=[],pedido=false;
 box.className='sugest';box.id='sugest';box.setAttribute('role','listbox');box.hidden=true;bi.parentNode.appendChild(box);
