@@ -108,7 +108,7 @@ def pagina(titulo, corpo, ativo=''):
     return f'''<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light only"><meta name="theme-color" content="#f9ebcd">
 <title>{E(titulo)} — Zelinda</title>{FONTES}<link rel="icon" href="favicon.svg" type="image/svg+xml"><link rel="icon" href="favicon.ico" sizes="any"><link rel="apple-touch-icon" href="apple-touch-icon.png"><link rel="stylesheet" href="estilo.css"></head><body>
 <div class="xadrez"></div>
-<div class="topo"><header><a class="logo" href="index.html">Zelinda</a><button class="menu-btn" type="button" aria-label="Abrir menu" aria-expanded="false" aria-controls="menu"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#c8283a" stroke-width="2.4" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button><nav id="menu">{nav("receitas.html?t=receita","Receitas","r")}{nav("receitas.html?t=memoria","Memórias","m")}{nav("familiares.html","Por familiar","f")}{nav("musicas.html","Músicas","u")}{nav("fotos.html","Fotos","o")}{nav("jogo.html","Jogo","j")}{nav("livro.html","O livro","l")}</nav></header></div>
+<div class="topo"><header><a class="logo" href="index.html">Zelinda</a><button class="menu-btn" type="button" aria-label="Abrir menu" aria-expanded="false" aria-controls="menu"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#c8283a" stroke-width="2.4" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button><nav id="menu">{nav("receitas.html?t=receita","Receitas","r")}{nav("receitas.html?t=memoria","Memórias","m")}{nav("familiares.html","Por familiar","f")}{nav("musicas.html","Músicas","u")}{nav("fotos.html","Slideshow","o")}{nav("galeria.html","Galeria","g")}{nav("jogo.html","Jogo","j")}{nav("livro.html","O livro","l")}</nav></header></div>
 <main>{corpo}</main>
 <footer><span class="coracao">♥</span> Memórias e Receitas de Dona Zelinda</footer><script src="app.js"></script></body></html>'''
 
@@ -321,7 +321,7 @@ for it in por_ordem:
             fotos.append(dict(src=f'img/{nome}.{ext}', t=it['titulo'], s=it['slug']))
 show = dict(fotos=fotos, musicas=[dict(src=f'musicas/{c}.mp3', t=t, capa=f'musicas/{c}.jpg') for t, _, c, _ in MUSICAS])
 IC = lambda d, extra='', t=22: f'<svg viewBox="0 0 24 24" width="{t}" height="{t}" aria-hidden="true" {extra}><path d="{d}"/></svg>'
-fotos_html = f'''<h1 class="script" style="text-align:center">Fotos e músicas</h1>
+fotos_html = f'''<h1 class="script" style="text-align:center">Slideshow</h1>
 <div class="show" id="show"><div class="tela">
 <figure class="slide on"><img src="capa.jpg" alt=""><figcaption>{E(fotos[0]["t"])}</figcaption></figure><figure class="slide"><img alt=""><figcaption></figcaption></figure>
 <button class="comecar" type="button"><span class="play">{IC("M8 5v14l11-7z", 'fill="#fff"', 40)}</span>Começar</button></div>
@@ -333,20 +333,24 @@ fotos_html = f'''<h1 class="script" style="text-align:center">Fotos e músicas</
 <audio id="som" preload="none"></audio></div>
 <p class="leg" style="text-align:center;margin-top:16px">{len(fotos)} desenhos do livro e {len(MUSICAS)} músicas, em loop. Dica: na TV ou no computador, use a tela cheia.</p>
 <script>window.SHOW={json.dumps(show, ensure_ascii=False).replace("</", "<\\/")}</script>'''
-open(S + '/fotos.html', 'w', encoding='utf-8').write(pagina('Fotos e músicas', fotos_html, 'o'))
+open(S + '/fotos.html', 'w', encoding='utf-8').write(pagina('Slideshow', fotos_html, 'o'))
 
 # pagina Jogo: jogo da memoria com os desenhos do livro (miniaturas leves em docs/mini)
 from PIL import Image
-os.makedirs(S + '/mini', exist_ok=True)
-cartas, vistos = [], set()
+os.makedirs(S + '/mini', exist_ok=True); os.makedirs(S + '/colorir', exist_ok=True)
+cartas, desenhos, vistos = [], [], set()
 for f in fotos[1:]:
     if f['src'] in vistos:
         continue
     vistos.add(f['src'])
     nome = os.path.splitext(os.path.basename(f['src']))[0]
     im = Image.open(f'{S}/{f["src"]}')
-    if im.mode != 'RGB':
+    baixar = f['src']
+    if im.mode != 'RGB':  # PNG transparente: copia com fundo branco (alguns celulares mostram o transparente como preto)
         im = im.convert('RGBA'); fundo_b = Image.new('RGBA', im.size, (255, 255, 255, 255)); fundo_b.alpha_composite(im); im = fundo_b.convert('RGB')
+        baixar = f'colorir/{nome}.jpg'
+        im.save(f'{S}/{baixar}', quality=92)
+    desenhos.append(dict(f, nome=nome, baixar=baixar, w=im.width, h=im.height))
     im.thumbnail((360, 360), Image.LANCZOS)
     im.save(f'{S}/mini/{nome}.jpg', quality=84, optimize=True)
     cartas.append(dict(src=f'mini/{nome}.jpg', t=f['t'], s=f['s']))
@@ -360,6 +364,57 @@ jogo_html = f'''<h1 class="script" style="text-align:center">Jogo da memória</h
 <div class="fim" id="fim" hidden></div></div>
 <script>window.JOGO={json.dumps(cartas, ensure_ascii=False).replace("</", "<\\/")}</script>'''
 open(S + '/jogo.html', 'w', encoding='utf-8').write(pagina('Jogo da memória', jogo_html, 'j'))
+
+# pagina Galeria: os desenhos do livro para baixar e imprimir (para as criancas pintarem)
+import pymupdf
+pdf = pymupdf.open()
+for d in desenhos:
+    deitado = d['w'] > d['h'] * 1.15
+    pg = pdf.new_page(width=842 if deitado else 595, height=595 if deitado else 842)
+    m = 34
+    pg.insert_image(pymupdf.Rect(m, m, pg.rect.width - m, pg.rect.height - m - 18), filename=f'{S}/{d["baixar"]}')
+    pg.insert_text((m, pg.rect.height - m + 4), f'Memórias e Receitas de Dona Zelinda  ·  {d["t"]}', fontsize=8.5, color=(.42, .35, .27))
+pdf.set_metadata({'title': 'Desenhos para colorir - Memórias e Receitas de Dona Zelinda', 'author': 'Zelinda', 'creationDate': '', 'modDate': '', 'producer': '', 'creator': ''})
+pdf.save(S + '/desenhos-para-colorir.pdf', garbage=3, deflate=True, no_new_id=True)
+pdf_mb = f'{os.path.getsize(S + "/desenhos-para-colorir.pdf") / 1e6:.1f}'.replace('.', ',')
+ext = lambda p: p.rsplit('.', 1)[1].replace('jpeg', 'jpg')
+gal = ''.join(
+    f'<figure class="desenho"><a class="ver" href="imprimir.html?d={k}" aria-label="Ver grande: {E(d["t"])}"><img src="mini/{d["nome"]}.jpg" alt="" loading="lazy"></a>'
+    f'<figcaption>{f"""<a href="r-{d["s"]}.html">{E(d["t"])}</a>""" if d["s"] else E(d["t"])}</figcaption>'
+    f'<div class="acoes"><a class="botao" href="{d["baixar"]}" download="Zelinda para colorir {k:02d}.{ext(d["baixar"])}">Baixar</a>'
+    f'<a class="botao claro" href="imprimir.html?d={k}&amp;p=1">Imprimir</a></div></figure>'
+    for k, d in enumerate(desenhos, 1))
+galeria_html = f'''<h1 class="script" style="text-align:center">Galeria de desenhos</h1>
+<p class="lead" style="text-align:center">Os {len(desenhos)} desenhos do livro para baixar, imprimir e as crianças pintarem.</p>
+<p class="pdf-todos"><a class="botao" href="desenhos-para-colorir.pdf" download="Desenhos para colorir - Zelinda.pdf">Baixar todos para imprimir</a><span class="leg">PDF · {len(desenhos)} páginas · {pdf_mb} MB · um desenho por folha</span></p>
+<div class="galeria">{gal}</div>'''
+open(S + '/galeria.html', 'w', encoding='utf-8').write(pagina('Galeria de desenhos', galeria_html, 'g'))
+# folha de impressao de um desenho: imprimir.html?d=N (&p=1 abre a janela de imprimir sozinha)
+imp = [dict(src=d['src'], baixar=d['baixar'], t=d['t'], s=d['s'], deitado=d['w'] > d['h'] * 1.15) for d in desenhos]
+imprimir_html = f'''<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light only">
+<title>Desenho para colorir — Zelinda</title>{FONTES}<link rel="icon" href="favicon.svg" type="image/svg+xml"><link rel="icon" href="favicon.ico" sizes="any">
+<style id="pagina">@page{{size:A4 portrait;margin:12mm}}</style><style>
+html,body{{margin:0;background:#fff;color:#2b211c;font:16px Lora,Georgia,serif}}
+.barra-imp{{position:sticky;top:0;display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:center;padding:10px;background:#fdf4df;border-bottom:3px solid #c9a24a}}
+.barra-imp a,.barra-imp button{{display:inline-flex;align-items:center;gap:6px;padding:9px 18px;border-radius:999px;border:2px solid #c8283a;background:#fff;color:#c8283a;font:600 16px Lora,serif;text-decoration:none;cursor:pointer}}
+.barra-imp .forte{{background:#c8283a;color:#fff}}.barra-imp a:hover,.barra-imp button:hover{{background:#9e1d2c;border-color:#9e1d2c;color:#fff}}
+.folha{{display:flex;flex-direction:column;align-items:center;padding:18px}}.folha img{{display:block;max-width:100%;max-height:calc(100vh - 150px);object-fit:contain}}
+.pe{{margin:8px 0 0;font-size:13px;color:#6b5a45;text-align:center}}.pe a{{color:#9e1d2c}}
+@media(max-width:500px){{.barra-imp{{gap:5px;padding:8px 6px}}.barra-imp a,.barra-imp button{{padding:7px 11px;font-size:15px}}}}
+@media print{{.barra-imp{{display:none}}.pe a{{color:inherit;text-decoration:none}}.folha{{padding:0}}.folha img{{max-height:262mm;max-width:186mm}}body.deitado .folha img{{max-height:172mm;max-width:273mm}}}}
+</style></head><body>
+<nav class="barra-imp"><a href="galeria.html">← Galeria</a><a id="ant" href="#" aria-label="Desenho anterior">‹</a><button class="forte" type="button" id="imprimir">Imprimir</button><a id="baixar" href="#">Baixar</a><a id="prox" href="#" aria-label="Próximo desenho">›</a></nav>
+<div class="folha"><img id="des" alt=""><p class="pe">Memórias e Receitas de Dona Zelinda · <span id="tit"></span></p></div>
+<script>(function(){{var D={json.dumps(imp, ensure_ascii=False).replace("</", "<\\/")},q=new URLSearchParams(location.search),
+k=Math.min(D.length,Math.max(1,parseInt(q.get('d'),10)||1)),d=D[k-1],im=document.getElementById('des'),t=document.getElementById('tit'),b=document.getElementById('baixar');
+if(d.deitado){{document.body.classList.add('deitado');document.getElementById('pagina').textContent='@page{{size:A4 landscape;margin:12mm}}'}}
+if(d.s){{var a=document.createElement('a');a.href='r-'+d.s+'.html';a.textContent=d.t;t.appendChild(a)}}else t.textContent=d.t;
+document.title=d.t+' — desenho para colorir';b.href=d.baixar;b.download='Zelinda para colorir '+(k<10?'0':'')+k+'.'+d.baixar.split('.').pop().replace('jpeg','jpg');
+document.getElementById('ant').href='imprimir.html?d='+(k>1?k-1:D.length);document.getElementById('prox').href='imprimir.html?d='+(k<D.length?k+1:1);
+document.getElementById('imprimir').onclick=function(){{window.print()}};
+im.onload=function(){{if(q.get('p'))setTimeout(function(){{window.print()}},300)}};im.src=d.src;im.alt='Desenho para colorir: '+d.t}})();</script>
+</body></html>'''
+open(S + '/imprimir.html', 'w', encoding='utf-8').write(imprimir_html)
 
 
 # icone do site: coracao vermelho
@@ -434,6 +489,12 @@ dialog.letra{width:calc(100% - 28px);max-width:560px;max-height:86vh;padding:0;o
 .achou{min-height:1.6em;text-align:center;margin:16px 0 0;font-size:18px}.achou .coracao{margin-right:6px}
 .fim{max-width:640px;margin:22px auto 0;padding:10px 30px 24px;text-align:center;background:var(--papel);border:2px solid var(--verm);border-radius:16px;outline:4px solid var(--creme);box-shadow:0 0 0 6px var(--ouro)}.fim h2{font-size:46px;margin:.2em 0}
 .fim-hist{list-style:none;padding:0;margin:6px 0 18px}.fim-hist li{padding:4px 0;border-bottom:1px dotted var(--ouro)}.fim-hist li:last-child{border:0}
+.pdf-todos{display:flex;flex-direction:column;align-items:center;gap:6px;margin:18px 0 30px}.pdf-todos .leg{margin:0}
+.galeria{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:20px}
+.desenho{margin:0;background:var(--papel);border:2px solid var(--verm);border-radius:14px;padding:10px;display:flex;flex-direction:column;gap:8px}
+.desenho .ver{display:flex;align-items:center;justify-content:center;aspect-ratio:1;background:#fff;border-radius:8px;overflow:hidden}.desenho .ver img{max-width:100%;max-height:100%;object-fit:contain;transition:transform .4s}.desenho .ver:hover img{transform:scale(1.04)}
+.desenho figcaption{margin:0;font:15px/1.3 Lora,serif;color:var(--tinta)}.desenho figcaption a{color:var(--tinta);text-decoration:none}.desenho figcaption a:hover{color:var(--verm);text-decoration:underline}
+.acoes{display:flex;gap:6px;margin-top:auto}.acoes .botao{flex:1;text-align:center;padding:8px 10px;font-size:15px}.botao.claro{background:var(--papel);color:var(--verm);box-shadow:inset 0 0 0 2px var(--verm)}.botao.claro:hover{background:var(--verm);color:#fff}
 .campo{flex:1;min-width:0;display:flex}.campo input{width:100%}
 .sugest{position:absolute;z-index:20;top:calc(100% + 6px);left:0;right:0;margin:0;padding:6px;list-style:none;background:var(--papel);border:2px solid var(--verm);border-radius:14px;box-shadow:0 12px 26px rgba(43,33,28,.2);max-height:min(60vh,430px);overflow:auto;text-align:left}
 .sugest a{display:block;padding:7px 12px;border-radius:10px;text-decoration:none;color:var(--tinta);font-size:16px;line-height:1.3}
@@ -488,6 +549,7 @@ main{padding:20px 14px 40px}
 .tela{height:60vh}.slide{padding:12px 10px 8px}.slide figcaption{font-size:15px}.barra{gap:6px;padding:8px 10px}.disco{width:40px;height:40px}.barra button{width:38px;height:38px}.barra button[data-acao=play]{width:44px;height:44px}.comecar{font-size:32px}
 .musicas{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.musica{padding:8px}.musica h2{font-size:21px}.yt .play{width:48px;height:48px;margin:-24px 0 0 -24px}.yt .play svg{width:22px;height:22px}
 .hero-img{transform:none}
+.galeria{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.desenho{padding:7px;gap:6px}.desenho figcaption{font-size:14px}.acoes{gap:5px}.acoes .botao{padding:7px 4px;font-size:14px}.pdf-todos .botao{white-space:normal;text-align:center}
 .tabuleiro{gap:8px}.tabuleiro.n6{--col:3}.tabuleiro.n12{--col:4}.face{border-width:2px;border-radius:9px}.frente img{padding:3px}.jogo-topo{justify-content:center}.niveis button{padding:5px 13px}.fim{padding:8px 16px 20px}
 }
 @media(prefers-reduced-motion:reduce){.cor{transition:none}}

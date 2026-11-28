@@ -52,6 +52,12 @@ dialog.letra{width:calc(100% - 28px);max-width:560px;max-height:86vh;padding:0;o
 .achou{min-height:1.6em;text-align:center;margin:16px 0 0;font-size:18px}.achou .coracao{margin-right:6px}
 .fim{max-width:640px;margin:22px auto 0;padding:10px 30px 24px;text-align:center;background:var(--papel);border:2px solid var(--verm);border-radius:16px;outline:4px solid var(--creme);box-shadow:0 0 0 6px var(--ouro)}.fim h2{font-size:46px;margin:.2em 0}
 .fim-hist{list-style:none;padding:0;margin:6px 0 18px}.fim-hist li{padding:4px 0;border-bottom:1px dotted var(--ouro)}.fim-hist li:last-child{border:0}
+.pdf-todos{display:flex;flex-direction:column;align-items:center;gap:6px;margin:18px 0 30px}.pdf-todos .leg{margin:0}
+.galeria{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:20px}
+.desenho{margin:0;background:var(--papel);border:2px solid var(--verm);border-radius:14px;padding:10px;display:flex;flex-direction:column;gap:8px}
+.desenho .ver{display:flex;align-items:center;justify-content:center;aspect-ratio:1;background:#fff;border-radius:8px;overflow:hidden}.desenho .ver img{max-width:100%;max-height:100%;object-fit:contain;transition:transform .4s}.desenho .ver:hover img{transform:scale(1.04)}
+.desenho figcaption{margin:0;font:15px/1.3 Lora,serif;color:var(--tinta)}.desenho figcaption a{color:var(--tinta);text-decoration:none}.desenho figcaption a:hover{color:var(--verm);text-decoration:underline}
+.acoes{display:flex;gap:6px;margin-top:auto}.acoes .botao{flex:1;text-align:center;padding:8px 10px;font-size:15px}.botao.claro{background:var(--papel);color:var(--verm);box-shadow:inset 0 0 0 2px var(--verm)}.botao.claro:hover{background:var(--verm);color:#fff}
 .campo{flex:1;min-width:0;display:flex}.campo input{width:100%}
 .sugest{position:absolute;z-index:20;top:calc(100% + 6px);left:0;right:0;margin:0;padding:6px;list-style:none;background:var(--papel);border:2px solid var(--verm);border-radius:14px;box-shadow:0 12px 26px rgba(43,33,28,.2);max-height:min(60vh,430px);overflow:auto;text-align:left}
 .sugest a{display:block;padding:7px 12px;border-radius:10px;text-decoration:none;color:var(--tinta);font-size:16px;line-height:1.3}
@@ -106,6 +112,7 @@ main{padding:20px 14px 40px}
 .tela{height:60vh}.slide{padding:12px 10px 8px}.slide figcaption{font-size:15px}.barra{gap:6px;padding:8px 10px}.disco{width:40px;height:40px}.barra button{width:38px;height:38px}.barra button[data-acao=play]{width:44px;height:44px}.comecar{font-size:32px}
 .musicas{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.musica{padding:8px}.musica h2{font-size:21px}.yt .play{width:48px;height:48px;margin:-24px 0 0 -24px}.yt .play svg{width:22px;height:22px}
 .hero-img{transform:none}
+.galeria{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.desenho{padding:7px;gap:6px}.desenho figcaption{font-size:14px}.acoes{gap:5px}.acoes .botao{padding:7px 4px;font-size:14px}.pdf-todos .botao{white-space:normal;text-align:center}
 .tabuleiro{gap:8px}.tabuleiro.n6{--col:3}.tabuleiro.n12{--col:4}.face{border-width:2px;border-radius:9px}.frente img{padding:3px}.jogo-topo{justify-content:center}.niveis button{padding:5px 13px}.fim{padding:8px 16px 20px}
 }
 @media(prefers-reduced-motion:reduce){.cor{transition:none}}
